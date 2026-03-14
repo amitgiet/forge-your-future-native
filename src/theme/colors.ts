@@ -1,0 +1,41 @@
+export const lightColors = {
+  background: '#f4f5f7',
+  foreground: '#171c28',
+  card: '#ffffff',
+  cardElevated: '#f8f9fb',
+  primary: '#0080ff',
+  primaryForeground: '#ffffff',
+  secondary: '#4a42d1',
+  secondaryForeground: '#ffffff',
+  muted: '#ecedf0',
+  mutedForeground: '#6a7080',
+  accent: '#1f8aef',
+  success: '#1fad64',
+  warning: '#f5a623',
+  destructive: '#df2020',
+  border: '#e2e4e8',
+  borderStrong: '#c5c9d0',
+  input: '#ecedf0',
+};
+
+export const darkColors = {
+  background: '#0f1219',
+  foreground: '#eef1f5',
+  card: '#181d27',
+  cardElevated: '#1e2430',
+  primary: '#1a8dff',
+  primaryForeground: '#ffffff',
+  secondary: '#5b53db',
+  secondaryForeground: '#ffffff',
+  muted: '#272d38',
+  mutedForeground: '#929aa6',
+  accent: '#1f8aef',
+  success: '#1fad64',
+  warning: '#f5a623',
+  destructive: '#df2020',
+  border: '#2b3140',
+  borderStrong: '#414b5e',
+  input: '#272d38',
+};
+
+export type ColorTokens = typeof lightColors;
