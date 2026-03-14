@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, ViewStyle } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
+import { radii } from '@/theme/spacing';
 
 interface StatIconProps {
   children: React.ReactNode;
@@ -18,7 +19,7 @@ export const StatIcon = ({ children, color, style }: StatIconProps) => {
         {
           width: 40,
           height: 40,
-          borderRadius: 12,
+          borderRadius: radii.md,
           backgroundColor: bgColor + '15',
           alignItems: 'center',
           justifyContent: 'center',

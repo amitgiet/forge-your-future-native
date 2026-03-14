@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'expo-router';
-import * as SecureStore from 'expo-secure-store';
+import { secureStore } from '@/lib/secureStore';
 import { apiService } from '@/lib/apiService';
 import { setAuthToken } from '@/lib/api';
 import { storage } from '@/lib/storage';
@@ -49,7 +49,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const unsub = EventEmitter.on('auth:unauthorized', () => {
       setUser(null);
-      SecureStore.deleteItemAsync('token').catch(() => {});
+      secureStore.deleteItemAsync('token').catch(() => {});
       setAuthToken(null);
     });
 
@@ -58,7 +58,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const checkAuth = async () => {
     try {
-      const token = await SecureStore.getItemAsync('token');
+      const token = await secureStore.getItemAsync('token');
 
       if (!token) {
         setLoading(false);
@@ -88,7 +88,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         await syncPreferredLanguage(profile?.profile?.preferredLanguage);
       }
     } catch {
-      await SecureStore.deleteItemAsync('token');
+      await secureStore.deleteItemAsync('token');
       setAuthToken(null);
     } finally {
       setLoading(false);
@@ -99,7 +99,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const response = await apiService.auth.login({ email, password });
 
     if (response.data.success) {
-      await SecureStore.setItemAsync('token', response.data.token);
+      await secureStore.setItemAsync('token', response.data.token);
       setAuthToken(response.data.token);
       setUser(response.data.user);
       await syncPreferredLanguage(response.data.user?.profile?.preferredLanguage);
@@ -116,7 +116,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const response = await apiService.auth.register({ name, email, password, phone });
 
     if (response.data.success) {
-      await SecureStore.setItemAsync('token', response.data.token);
+      await secureStore.setItemAsync('token', response.data.token);
       setAuthToken(response.data.token);
       setUser(response.data.user);
       await syncPreferredLanguage(response.data.user?.profile?.preferredLanguage);
@@ -125,7 +125,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = async () => {
-    await SecureStore.deleteItemAsync('token');
+    await secureStore.deleteItemAsync('token');
     setAuthToken(null);
     await storage.remove('preferredLanguage');
     setUser(null);
@@ -133,7 +133,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const demoLogin = async () => {
-    await SecureStore.setItemAsync('token', 'demo-token-12345');
+    await secureStore.setItemAsync('token', 'demo-token-12345');
     setAuthToken('demo-token-12345');
     const demoUser: User = {
       _id: 'demo-user',

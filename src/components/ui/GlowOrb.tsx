@@ -27,10 +27,10 @@ export const GlowOrb = ({ color, size = 200, top, left, right, bottom, opacity =
           left,
           right,
           bottom,
+          pointerEvents: 'none',
         },
         style,
       ]}
-      pointerEvents="none"
     />
   );
 };

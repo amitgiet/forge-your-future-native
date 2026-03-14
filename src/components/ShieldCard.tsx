@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, Pressable } from 'react-native';
-import { MotiView } from 'moti';
-import { Shield, Pause, Play } from 'lucide-react-native';
-import { useTheme } from '@/contexts/ThemeContext';
-import { GlassCard } from '@/components/ui/GlassCard';
-import { StatIcon } from '@/components/ui/StatIcon';
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { View, Text, Pressable } from "react-native";
+import Svg, { Circle } from "react-native-svg";
+import { MotiView } from "moti";
+import { Shield, Pause, Play } from "lucide-react-native";
+import { useTheme } from "@/contexts/ThemeContext";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { GlassCard } from "@/components/ui/GlassCard";
+import { StatIcon } from "@/components/ui/StatIcon";
 
 interface ShieldCardProps {
   initialMinutes?: number;
@@ -54,95 +56,116 @@ export const ShieldCard = ({ initialMinutes = 25 }: ShieldCardProps) => {
 
   const minutes = Math.floor(timeRemaining / 60);
   const seconds = timeRemaining % 60;
-  const formatted = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  const formatted = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 
   const progress = timeRemaining / totalSeconds; // 1 = full, 0 = done
   const ringSize = 120;
   const borderW = 6;
 
+  const { t } = useLanguage();
+  const title = t("dashboard.shield") || "Shield";
+  const ringRadius = 44;
+  const circumference = 2 * Math.PI * ringRadius;
+  const progressDash = circumference * (1 - progress);
+
   return (
     <MotiView
       from={{ opacity: 0, translateY: 12 }}
       animate={{ opacity: 1, translateY: 0 }}
-      transition={{ type: 'timing', duration: 400 }}
+      transition={{ type: "timing", duration: 400 }}
     >
       <GlassCard>
-        {/* Header */}
         <View
           style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 10,
-            marginBottom: 20,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
           }}
         >
-          <StatIcon color={colors.secondary}>
-            <Shield size={20} color={colors.secondary} />
-          </StatIcon>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+            <StatIcon color={colors.secondary}>
+              <Shield size={20} color={colors.secondary} />
+            </StatIcon>
+            <View>
+              <Text
+                style={{
+                  fontSize: 17,
+                  fontWeight: "700",
+                  color: colors.foreground,
+                  fontFamily: "Inter_700Bold",
+                }}
+              >
+                {title}
+              </Text>
+              <Text
+                style={{
+                  fontSize: 12,
+                  color: colors.mutedForeground,
+                  fontFamily: "Inter_500Medium",
+                  marginTop: 2,
+                }}
+              >
+                {initialMinutes}-minute focus timer
+              </Text>
+            </View>
+          </View>
+
           <Text
             style={{
-              fontSize: 17,
-              fontWeight: '700',
-              color: colors.foreground,
-              fontFamily: 'Inter_700Bold',
+              fontSize: 12,
+              fontWeight: "600",
+              color: colors.primary,
+              fontFamily: "Inter_600SemiBold",
             }}
           >
-            Shield
+            {formatted}
           </Text>
         </View>
 
-        {/* Timer Ring */}
-        <View style={{ alignItems: 'center', gap: 16 }}>
-          <View
-            style={{
-              width: ringSize,
-              height: ringSize,
-              borderRadius: ringSize / 2,
-              borderWidth: borderW,
-              borderColor: colors.muted,
-              alignItems: 'center',
-              justifyContent: 'center',
-              position: 'relative',
-            }}
-          >
-            {/* Progress overlay — we use a simple approach with a colored border.
-                The trick: we render an absolutely-positioned ring on top with the
-                active color. We clip it by using a rotating mask approach.
-                For simplicity, we use a single-ring approach with opacity-mapped
-                border segments via 4 quarter-arcs. */}
-
-            {/* Simplified: overlay ring with active color, full circle, then
-                cover the "empty" portion with background-colored arcs.
-                Easiest RN approach: just show a full colored border whose
-                opacity reflects progress. */}
-            <View
-              style={{
-                position: 'absolute',
-                top: -borderW,
-                left: -borderW,
-                width: ringSize,
-                height: ringSize,
-                borderRadius: ringSize / 2,
-                borderWidth: borderW,
-                borderColor: progress > 0 ? colors.primary : 'transparent',
-                opacity: progress,
-              }}
-            />
-
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginTop: 20,
+          }}
+        >
+          <View style={{ alignItems: "center" }}>
+            <Svg width={ringRadius * 2 + 8} height={ringRadius * 2 + 8}>
+              <Circle
+                cx={ringRadius + 4}
+                cy={ringRadius + 4}
+                r={ringRadius}
+                stroke={colors.muted}
+                strokeWidth={8}
+                fill="none"
+              />
+              <Circle
+                cx={ringRadius + 4}
+                cy={ringRadius + 4}
+                r={ringRadius}
+                stroke={colors.primary}
+                strokeWidth={8}
+                fill="none"
+                strokeDasharray={`${circumference}`}
+                strokeDashoffset={progressDash}
+                strokeLinecap="round"
+                rotation="-90"
+                origin={`${ringRadius + 4}, ${ringRadius + 4}`}
+              />
+            </Svg>
             <Text
               style={{
-                fontSize: 28,
-                fontWeight: '700',
-                color: colors.foreground,
-                fontFamily: 'Inter_700Bold',
-                letterSpacing: 1,
+                marginTop: 6,
+                fontSize: 12,
+                color: colors.mutedForeground,
+                fontFamily: "Inter_500Medium",
               }}
             >
-              {formatted}
+              {Math.round(progress * 100)}% left
             </Text>
           </View>
 
-          {/* Play / Pause Button */}
           <Pressable
             onPress={toggleTimer}
             style={({ pressed }) => ({
@@ -150,15 +173,15 @@ export const ShieldCard = ({ initialMinutes = 25 }: ShieldCardProps) => {
               height: 56,
               borderRadius: 28,
               backgroundColor: colors.primary,
-              alignItems: 'center',
-              justifyContent: 'center',
+              alignItems: "center",
+              justifyContent: "center",
               opacity: pressed ? 0.85 : 1,
             })}
           >
             {isRunning ? (
-              <Pause size={24} color="#ffffff" />
+              <Pause size={24} color="#fff" />
             ) : (
-              <Play size={24} color="#ffffff" />
+              <Play size={24} color="#fff" />
             )}
           </Pressable>
         </View>

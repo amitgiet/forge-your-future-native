@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { MotiView } from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Zap } from 'lucide-react-native';
-import * as SecureStore from 'expo-secure-store';
+import { secureStore } from '@/lib/secureStore';
 import { useTheme } from '@/contexts/ThemeContext';
 import { gradients, gradientProps } from '@/theme/gradients';
 import { GlowOrb } from '@/components/ui/GlowOrb';
@@ -15,7 +15,7 @@ export default function SplashScreen() {
 
   useEffect(() => {
     const timer = setTimeout(async () => {
-      const token = await SecureStore.getItemAsync('token');
+      const token = await secureStore.getItemAsync('token');
       if (token) {
         router.replace('/(auth)/(tabs)');
       } else {

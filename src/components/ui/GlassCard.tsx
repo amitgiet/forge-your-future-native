@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, ViewStyle } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
+import { radii } from '@/theme/spacing';
 
 interface GlassCardProps {
   children: React.ReactNode;
@@ -9,21 +10,17 @@ interface GlassCardProps {
 }
 
 export const GlassCard = ({ children, style, small }: GlassCardProps) => {
-  const { colors, shadows, isDark } = useTheme();
+  const { colors, shadows } = useTheme();
 
   return (
     <View
       style={[
         {
-          backgroundColor: isDark
-            ? 'rgba(24, 29, 39, 0.8)'
-            : 'rgba(255, 255, 255, 0.85)',
-          borderRadius: small ? 8 : 12,
+          backgroundColor: colors.card,
+          borderRadius: small ? radii.sm : radii.md,
           padding: small ? 14 : 20,
           borderWidth: 1,
-          borderColor: isDark
-            ? 'rgba(255,255,255,0.08)'
-            : 'rgba(255,255,255,0.5)',
+          borderColor: colors.border,
           ...shadows.card,
         },
         style,
@@ -33,3 +30,4 @@ export const GlassCard = ({ children, style, small }: GlassCardProps) => {
     </View>
   );
 };
+

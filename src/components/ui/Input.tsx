@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, TextInput, Text, TextInputProps, ViewStyle } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
+import { radii } from '@/theme/spacing';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -40,7 +41,7 @@ export const Input = ({ label, error, containerStyle, style, ...props }: InputPr
         style={[
           {
             minHeight: 48,
-            borderRadius: 12,
+            borderRadius: radii.md,
             paddingHorizontal: 16,
             paddingVertical: 12,
             fontSize: 16,

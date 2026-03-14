@@ -3,6 +3,7 @@ import { Pressable, Text, ActivityIndicator, ViewStyle, TextStyle } from 'react-
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/contexts/ThemeContext';
 import { gradients, gradientProps } from '@/theme/gradients';
+import { radii } from '@/theme/spacing';
 
 type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'destructive';
 type ButtonSize = 'default' | 'sm' | 'lg' | 'icon';
@@ -32,10 +33,10 @@ export const Button = ({
   const { colors, isDark } = useTheme();
 
   const sizeStyles: Record<ButtonSize, ViewStyle> = {
-    default: { minHeight: 48, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 },
-    sm: { minHeight: 36, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
-    lg: { minHeight: 56, paddingHorizontal: 32, paddingVertical: 16, borderRadius: 16 },
-    icon: { width: 40, height: 40, borderRadius: 12, paddingHorizontal: 0, paddingVertical: 0 },
+    default: { minHeight: 48, paddingHorizontal: 24, paddingVertical: 12, borderRadius: radii.md },
+    sm: { minHeight: 36, paddingHorizontal: 16, paddingVertical: 8, borderRadius: radii.sm },
+    lg: { minHeight: 56, paddingHorizontal: 32, paddingVertical: 16, borderRadius: radii.lg },
+    icon: { width: 40, height: 40, borderRadius: radii.md, paddingHorizontal: 0, paddingVertical: 0 },
   };
 
   const textSizeStyles: Record<ButtonSize, TextStyle> = {
