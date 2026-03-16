@@ -1,157 +1,361 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Pressable, RefreshControl } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import {
+  View, Text, ScrollView, Pressable, ActivityIndicator,
+} from 'react-native';
 import { useRouter } from 'expo-router';
+import { MotiView } from 'moti';
+import {
+  ArrowLeft, Trophy, Medal, Flame, Zap, Crown,
+  Target, TrendingUp,
+} from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowLeft, Trophy, Medal, Crown } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import apiService from '@/lib/apiService';
-import { GlassCard } from '@/components/ui/GlassCard';
-import { Badge } from '@/components/ui/Badge';
-import { Skeleton } from '@/components/ui/Skeleton';
-import { Tabs } from '@/components/ui/Tabs';
-import { Avatar } from '@/components/ui/Avatar';
+import { gradients, gradientProps } from '@/theme/gradients';
 
-const TABS = [
-  { key: 'daily', label: 'Daily' },
-  { key: 'weekly', label: 'Weekly' },
-  { key: 'allTime', label: 'All Time' },
-];
+interface LeaderboardEntry {
+  rank: number;
+  name: string;
+  avatar: string;
+  score: number;
+  totalXP: number;
+  streak: number;
+  completedToday: boolean;
+}
 
-const RANK_COLORS = ['#FFD700', '#C0C0C0', '#CD7F32'];
-
-export default function LeaderboardScreen() {
+const Leaderboard = () => {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-
-  const [activeTab, setActiveTab] = useState('daily');
-  const [leaderboard, setLeaderboard] = useState<any[]>([]);
-  const [userRank, setUserRank] = useState<any>(null);
+  const insets = useSafeAreaInsets();
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [tab, setTab] = useState<'daily' | 'weekly' | 'allTime'>('daily');
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const [userCompletedToday, setUserCompletedToday] = useState(false);
 
-  const fetchData = async () => {
+  useEffect(() => { fetchLeaderboard(); }, [tab]);
+
+  const fetchLeaderboard = async () => {
     try {
-      const fetcher = activeTab === 'daily'
-        ? apiService.leaderboard.getDailyLeaderboard
-        : activeTab === 'weekly'
-        ? apiService.leaderboard.getWeeklyLeaderboard
-        : apiService.leaderboard.getLeaderboard;
+      setLoading(true);
+      let response;
+      if (tab === 'daily') response = await apiService.leaderboard.getDailyLeaderboard(10);
+      else if (tab === 'weekly') response = await apiService.leaderboard.getWeeklyLeaderboard(10);
+      else response = await apiService.leaderboard.getLeaderboard(10);
 
-      const [lbRes, rankRes] = await Promise.allSettled([
-        fetcher(20),
-        apiService.leaderboard.getUserRank(),
-      ]);
-      if (lbRes.status === 'fulfilled' && lbRes.value.data?.success) {
-        setLeaderboard(lbRes.value.data.data || []);
+      if (response.data?.success) {
+        const data = response.data.data || [];
+        const mapped = data.map((entry: any) => ({
+          rank: entry.rank,
+          name: entry.name,
+          avatar: entry.avatar || entry.name.charAt(0).toUpperCase(),
+          score: entry.score || 0,
+          totalXP: entry.totalXP || 0,
+          streak: entry.streak || 0,
+          completedToday: entry.completedToday || false,
+        }));
+        setLeaderboard(mapped);
+        const userEntry = response.data.currentUserEntry || response.data.userRank;
+        if (userEntry?.completedToday) setUserCompletedToday(true);
       }
-      if (rankRes.status === 'fulfilled' && rankRes.value.data?.success) {
-        setUserRank(rankRes.value.data.data);
-      }
-    } catch {} finally {
-      setLoading(false);
-    }
+    } catch (e) { console.error(e); setLeaderboard([]); }
+    finally { setLoading(false); }
   };
 
-  useEffect(() => {
-    setLoading(true);
-    fetchData();
-  }, [activeTab]);
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await fetchData();
-    setRefreshing(false);
+  // Same rank icon logic as web
+  const getRankIcon = (rank: number) => {
+    if (rank === 1) return <Crown size={20} color="#EAB308" />;
+    if (rank === 2) return <Medal size={20} color="#9CA3AF" />;
+    if (rank === 3) return <Medal size={20} color="#D97706" />;
+    return <Text style={{ fontSize: 13, fontWeight: '700', color: colors.mutedForeground }}>#{rank}</Text>;
   };
+
+  // Same rank background colors as web
+  const getRankBg = (rank: number) => {
+    if (rank === 1) return ['#FEF9C3', '#FEF08A']; // yellow-100 to amber-100
+    if (rank === 2) return ['#F3F4F6', '#F8FAFC']; // gray-100 to slate-100
+    if (rank === 3) return ['#FEF3C7', '#FFEDD5']; // amber-100 to orange-100
+    return [colors.card, colors.card];
+  };
+
+  const currentUserRank = userCompletedToday ? 1 : 0;
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <View style={{ paddingTop: insets.top, paddingHorizontal: 16 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 12 }}>
-          <Pressable onPress={() => router.back()} style={{ padding: 8 }}>
-            <ArrowLeft size={24} color={colors.foreground} />
-          </Pressable>
-          <Text style={{ flex: 1, fontSize: 18, fontWeight: '700', color: colors.foreground, fontFamily: 'PlusJakartaSans_700Bold' }}>
-            Leaderboard
+    <ScrollView
+      style={{ flex: 1, backgroundColor: colors.background }}
+      contentContainerStyle={{ padding: 16, paddingTop: insets.top + 8, paddingBottom: 32 }}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* Header — same as web */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+        <Pressable
+          onPress={() => router.back()}
+          style={({ pressed }) => ({
+            width: 40, height: 40, borderRadius: 12,
+            backgroundColor: colors.card,
+            borderWidth: 1, borderColor: colors.border,
+            alignItems: 'center', justifyContent: 'center',
+            opacity: pressed ? 0.7 : 1,
+          })}
+        >
+          <ArrowLeft size={20} color={colors.foreground} />
+        </Pressable>
+        <View style={{ flex: 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Trophy size={20} color={colors.warning} />
+            <Text style={{ fontSize: 20, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold' }}>
+              Leaderboard
+            </Text>
+          </View>
+          <Text style={{ fontSize: 12, color: colors.mutedForeground, fontFamily: 'Inter_400Regular' }}>
+            Daily DPP Rankings
           </Text>
         </View>
-        <Tabs tabs={TABS} activeKey={activeTab} onTabChange={setActiveTab} style={{ marginBottom: 12 }} />
       </View>
 
-      <ScrollView
-        contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 20 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Your Rank */}
-        {userRank && (
-          <GlassCard style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16, borderWidth: 2, borderColor: colors.primary }}>
+      {/* Tabs — same as web: 3 buttons flex-1 */}
+      <View style={{ flexDirection: 'row', gap: 8, marginBottom: 24 }}>
+        {(['daily', 'weekly', 'allTime'] as const).map((t) => (
+          <Pressable
+            key={t}
+            onPress={() => setTab(t)}
+            style={({ pressed }) => ({
+              flex: 1, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12,
+              backgroundColor: tab === t ? colors.primary : colors.muted,
+              opacity: pressed ? 0.85 : 1,
+              alignItems: 'center',
+            })}
+          >
+            <Text style={{
+              fontSize: 13, fontWeight: '700', fontFamily: 'Inter_700Bold',
+              color: tab === t ? '#fff' : colors.mutedForeground,
+            }}>
+              {t === 'daily' ? 'Today' : t === 'weekly' ? 'This Week' : 'All Time'}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+
+      {/* ── Top 3 Podium ── same order as web: 2nd / 1st / 3rd */}
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center', gap: 8, marginBottom: 24 }}>
+        {/* 2nd Place */}
+        <MotiView
+          from={{ opacity: 0, translateY: 20 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'timing', duration: 300, delay: 100 }}
+          style={{ flex: 1, alignItems: 'center' }}
+        >
+          <View style={{
+            width: 56, height: 56, borderRadius: 28,
+            backgroundColor: '#9CA3AF',
+            alignItems: 'center', justifyContent: 'center',
+            borderWidth: 4, borderColor: '#fff', marginBottom: 8,
+          }}>
+            <Text style={{ fontSize: 20, fontWeight: '700', color: '#fff' }}>{leaderboard[1]?.avatar}</Text>
+          </View>
+          <Text style={{ fontSize: 13, fontWeight: '700', color: colors.foreground }} numberOfLines={1}>{leaderboard[1]?.name}</Text>
+          <Text style={{ fontSize: 11, color: colors.mutedForeground }}>{leaderboard[1]?.totalXP?.toLocaleString()} XP</Text>
+          <LinearGradient
+            colors={['#D1D5DB', '#E2E8F0']}
+            start={gradientProps.start}
+            end={{ x: 0.5, y: 0 }}
+            style={{ height: 64, width: '100%', borderTopLeftRadius: 12, borderTopRightRadius: 12, marginTop: 8, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Text style={{ fontSize: 24, fontWeight: '900', color: '#6B7280' }}>2</Text>
+          </LinearGradient>
+        </MotiView>
+
+        {/* 1st Place — tallest */}
+        <MotiView
+          from={{ opacity: 0, translateY: 20 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'timing', duration: 300 }}
+          style={{ flex: 1, alignItems: 'center' }}
+        >
+          <View style={{ position: 'relative', alignItems: 'center' }}>
+            <Crown size={24} color="#EAB308" style={{ marginBottom: 4 }} />
             <View style={{
-              width: 40, height: 40, borderRadius: 12, backgroundColor: colors.primary + '15',
+              width: 72, height: 72, borderRadius: 36,
+              backgroundColor: '#F59E0B',
+              alignItems: 'center', justifyContent: 'center',
+              borderWidth: 4, borderColor: '#fff', marginBottom: 8,
+            }}>
+              <Text style={{ fontSize: 24, fontWeight: '700', color: '#fff' }}>{leaderboard[0]?.avatar}</Text>
+            </View>
+          </View>
+          <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground }} numberOfLines={1}>{leaderboard[0]?.name}</Text>
+          <Text style={{ fontSize: 11, color: colors.mutedForeground }}>{leaderboard[0]?.totalXP?.toLocaleString()} XP</Text>
+          <LinearGradient
+            colors={['#FCD34D', '#FDE68A']}
+            start={gradientProps.start}
+            end={{ x: 0.5, y: 0 }}
+            style={{ height: 96, width: '100%', borderTopLeftRadius: 12, borderTopRightRadius: 12, marginTop: 8, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Text style={{ fontSize: 30, fontWeight: '900', color: '#CA8A04' }}>1</Text>
+          </LinearGradient>
+        </MotiView>
+
+        {/* 3rd Place */}
+        <MotiView
+          from={{ opacity: 0, translateY: 20 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'timing', duration: 300, delay: 200 }}
+          style={{ flex: 1, alignItems: 'center' }}
+        >
+          <View style={{
+            width: 56, height: 56, borderRadius: 28,
+            backgroundColor: '#D97706',
+            alignItems: 'center', justifyContent: 'center',
+            borderWidth: 4, borderColor: '#fff', marginBottom: 8,
+          }}>
+            <Text style={{ fontSize: 20, fontWeight: '700', color: '#fff' }}>{leaderboard[2]?.avatar}</Text>
+          </View>
+          <Text style={{ fontSize: 13, fontWeight: '700', color: colors.foreground }} numberOfLines={1}>{leaderboard[2]?.name}</Text>
+          <Text style={{ fontSize: 11, color: colors.mutedForeground }}>{leaderboard[2]?.totalXP?.toLocaleString()} XP</Text>
+          <LinearGradient
+            colors={['#FCD34D', '#FDE68A']}
+            start={gradientProps.start}
+            end={{ x: 0.5, y: 0 }}
+            style={{ height: 48, width: '100%', borderTopLeftRadius: 12, borderTopRightRadius: 12, marginTop: 8, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Text style={{ fontSize: 20, fontWeight: '900', color: '#D97706' }}>3</Text>
+          </LinearGradient>
+        </MotiView>
+      </View>
+
+      {/* Your Position Card — same conditional as web */}
+      {currentUserRank > 0 && (
+        <MotiView
+          from={{ opacity: 0, translateY: 10 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'timing', duration: 300 }}
+          style={{
+            flexDirection: 'row', alignItems: 'center', gap: 12,
+            backgroundColor: colors.primary + '14',
+            borderRadius: 16, borderWidth: 1, borderColor: colors.primary + '40',
+            padding: 16, marginBottom: 16,
+          }}
+        >
+          <LinearGradient
+            colors={[colors.secondary, colors.primary]}
+            start={gradientProps.start}
+            end={gradientProps.end}
+            style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Text style={{ fontSize: 16, fontWeight: '700', color: '#fff' }}>Y</Text>
+          </LinearGradient>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold' }}>
+              Your Position
+            </Text>
+            <Text style={{ fontSize: 12, color: colors.mutedForeground, fontFamily: 'Inter_400Regular' }}>
+              Keep going! You're doing great
+            </Text>
+          </View>
+          <View style={{ alignItems: 'flex-end' }}>
+            <Text style={{ fontSize: 24, fontWeight: '900', color: colors.primary, fontFamily: 'Inter_700Bold' }}>
+              #{currentUserRank || '—'}
+            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <TrendingUp size={12} color={colors.success} />
+              <Text style={{ fontSize: 11, color: colors.success, fontFamily: 'Inter_400Regular' }}>+3 today</Text>
+            </View>
+          </View>
+        </MotiView>
+      )}
+
+      {/* Full list (from rank 4 onwards) — same as web */}
+      <View style={{ gap: 8 }}>
+        {leaderboard.slice(3).map((entry, index) => (
+          <MotiView
+            key={entry.rank}
+            from={{ opacity: 0, translateX: -20 }}
+            animate={{ opacity: 1, translateX: 0 }}
+            transition={{ type: 'timing', duration: 300, delay: index * 100 }}
+            style={{
+              flexDirection: 'row', alignItems: 'center', gap: 12,
+              backgroundColor: colors.card,
+              borderRadius: 12, borderWidth: 2, borderColor: colors.border,
+              padding: 12,
+            }}
+          >
+            <View style={{ width: 32, alignItems: 'center', justifyContent: 'center' }}>
+              {getRankIcon(entry.rank)}
+            </View>
+            <View style={{
+              width: 40, height: 40, borderRadius: 20,
+              backgroundColor: colors.primary + '20',
+              borderWidth: 2, borderColor: colors.border,
               alignItems: 'center', justifyContent: 'center',
             }}>
-              <Text style={{ fontSize: 16, fontWeight: '800', color: colors.primary }}>#{userRank.rank || '—'}</Text>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: colors.foreground }}>{entry.avatar}</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 14, fontWeight: '600', color: colors.foreground }}>Your Rank</Text>
-              <Text style={{ fontSize: 12, color: colors.mutedForeground }}>{userRank.totalXP || 0} XP</Text>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold' }} numberOfLines={1}>
+                {entry.name}
+              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 2 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Zap size={12} color={colors.warning} />
+                  <Text style={{ fontSize: 12, color: colors.mutedForeground }}>{entry.totalXP.toLocaleString()} XP</Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Flame size={12} color={colors.primary} />
+                  <Text style={{ fontSize: 12, color: colors.mutedForeground }}>{entry.streak} days</Text>
+                </View>
+              </View>
             </View>
-            <Badge variant="primary">You</Badge>
-          </GlassCard>
-        )}
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={{ fontSize: 18, fontWeight: '900', color: colors.foreground, fontFamily: 'Inter_700Bold' }}>
+                {entry.score}%
+              </Text>
+              {entry.completedToday && (
+                <Text style={{ fontSize: 11, color: colors.success, fontWeight: '500' }}>✓ Done</Text>
+              )}
+            </View>
+          </MotiView>
+        ))}
+      </View>
 
-        {loading ? (
-          <View style={{ gap: 8 }}>
-            {[1, 2, 3, 4, 5, 6].map((i) => <Skeleton key={i} height={60} borderRadius={12} />)}
-          </View>
-        ) : leaderboard.length === 0 ? (
-          <GlassCard style={{ alignItems: 'center', paddingVertical: 40, gap: 12 }}>
-            <Trophy size={40} color={colors.mutedForeground} />
-            <Text style={{ fontSize: 16, fontWeight: '600', color: colors.foreground }}>No data yet</Text>
-            <Text style={{ fontSize: 13, color: colors.mutedForeground }}>Complete challenges to appear on the leaderboard!</Text>
-          </GlassCard>
-        ) : (
-          <View style={{ gap: 8 }}>
-            {leaderboard.map((user: any, i: number) => (
-              <GlassCard key={user._id || i} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 }}>
-                {/* Rank */}
-                <View style={{
-                  width: 36, height: 36, borderRadius: 10,
-                  backgroundColor: i < 3 ? (RANK_COLORS[i] + '20') : colors.muted,
-                  alignItems: 'center', justifyContent: 'center',
-                }}>
-                  {i === 0 ? (
-                    <Crown size={18} color={RANK_COLORS[0]} />
-                  ) : i < 3 ? (
-                    <Medal size={18} color={RANK_COLORS[i]} />
-                  ) : (
-                    <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground }}>
-                      {i + 1}
-                    </Text>
-                  )}
-                </View>
-
-                {/* Avatar & Name */}
-                <Avatar size={36} name={user.name || 'User'} />
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
-                    {user.name || 'Anonymous'}
-                  </Text>
-                  <Text style={{ fontSize: 12, color: colors.mutedForeground }}>
-                    {user.totalXP || user.xp || user.score || 0} XP
-                  </Text>
-                </View>
-
-                {i < 3 && (
-                  <Badge variant={i === 0 ? 'warning' : i === 1 ? 'outline' : 'secondary'}>
-                    #{i + 1}
-                  </Badge>
-                )}
-              </GlassCard>
-            ))}
-          </View>
-        )}
-      </ScrollView>
-    </View>
+      {/* CTA button — same conditional as web */}
+      {!userCompletedToday && (
+        <MotiView
+          from={{ opacity: 0, translateY: 20 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'timing', duration: 300 }}
+          style={{ marginTop: 24 }}
+        >
+          <Pressable
+            onPress={() => router.push('/(auth)/daily-challenge' as any)}
+            style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
+          >
+            <LinearGradient
+              colors={[...gradients.primary]}
+              start={gradientProps.start}
+              end={gradientProps.end}
+              style={{
+                minHeight: 52, borderRadius: 12,
+                flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}
+            >
+              <Target size={20} color="#fff" />
+              <Text style={{ fontSize: 15, fontWeight: '600', color: '#fff', fontFamily: 'Inter_600SemiBold' }}>
+                Take Today's DPP
+              </Text>
+            </LinearGradient>
+          </Pressable>
+        </MotiView>
+      )}
+    </ScrollView>
   );
-}
+};
+
+export default Leaderboard;

@@ -1,7 +1,8 @@
 import axios from 'axios';
 import { EventEmitter } from './events';
 
-const baseURL = 'https://backend-forge-neet.onrender.com';
+// const baseURL = 'https://backend-forge-neet.onrender.com';
+const baseURL = 'http://localhost:5002';
 export const API_BASE_URL = baseURL;
 
 // In-memory token for synchronous interceptor access

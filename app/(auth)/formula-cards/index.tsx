@@ -1,145 +1,196 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Pressable, RefreshControl } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, Pressable, ActivityIndicator, Image } from 'react-native';
 import { useRouter } from 'expo-router';
+import { MotiView } from 'moti';
+import { ChevronLeft, ChevronRight, FlaskConical, Atom, Zap } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowLeft, BookMarked, ChevronRight } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import apiService from '@/lib/apiService';
-import { GlassCard } from '@/components/ui/GlassCard';
-import { Badge } from '@/components/ui/Badge';
-import { Skeleton } from '@/components/ui/Skeleton';
 
-const SUBJECT_COLORS: Record<string, string> = {
-  physics: '#1a8dff',
-  chemistry: '#1fad64',
-  biology: '#f5a623',
+// Same subject icon map as web
+const SubjectIcon = ({ name }: { name: string }) => {
+  const lower = name?.toLowerCase();
+  const { colors } = useTheme();
+  if (lower === 'physics') return <Zap size={20} color={colors.foreground} />;
+  if (lower === 'chemistry') return <FlaskConical size={20} color={colors.foreground} />;
+  return <Atom size={20} color={colors.foreground} />;
 };
 
-export default function FormulaCardsIndexScreen() {
+const FormulaCards: React.FC = () => {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-
+  const insets = useSafeAreaInsets();
   const [subjects, setSubjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
 
-  const fetchSubjects = async () => {
-    try {
-      const res = await apiService.formulas.getSubjects();
-      if (res.data?.success) {
-        setSubjects(res.data.data || []);
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      try {
+        const res = await apiService.formulas.getSubjects();
+        if (res.data?.success) setSubjects(res.data.data);
+      } catch (e) {
+        console.error('Failed to load formula subjects:', e);
+      } finally {
+        setLoading(false);
       }
-    } catch {} finally {
-      setLoading(false);
-    }
+    };
+    fetchSubjects();
+  }, []);
+
+  const openChapter = (subjectTitle: string, chapter: any) => {
+    router.push({
+      pathname: '/(auth)/formula-cards/[chapter]' as any,
+      params: { chapter: encodeURIComponent(chapter.title), subjectTitle, chapterTitle: chapter.title, chapterColor: chapter.color },
+    });
   };
 
-  useEffect(() => { fetchSubjects(); }, []);
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await fetchSubjects();
-    setRefreshing(false);
-  };
+  const calculateCardsCount = (subject: any) =>
+    subject.chapters.reduce((acc: number, curr: any) => acc + (curr.cardsCount || 0), 0);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <View style={{ paddingTop: insets.top, paddingHorizontal: 16 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 12 }}>
-          <Pressable onPress={() => router.back()} style={{ padding: 8 }}>
-            <ArrowLeft size={24} color={colors.foreground} />
-          </Pressable>
-          <Text style={{ flex: 1, fontSize: 18, fontWeight: '700', color: colors.foreground, fontFamily: 'PlusJakartaSans_700Bold' }}>
-            Formula Cards
-          </Text>
-        </View>
+      {/* Header — same as web: sticky, backdrop-blur, border-b */}
+      <View style={{
+        backgroundColor: colors.background + 'F2',
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border,
+        paddingHorizontal: 16,
+        paddingBottom: 12,
+        paddingTop: insets.top + 4,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+      }}>
+        <Pressable
+          onPress={() => router.back()}
+          style={({ pressed }) => ({
+            padding: 4, borderRadius: 10,
+            backgroundColor: pressed ? colors.muted : 'transparent',
+          })}
+        >
+          <ChevronLeft size={20} color={colors.foreground} />
+        </Pressable>
+        <Text style={{ fontSize: 18, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold' }}>
+          📋 Formula Cards
+        </Text>
       </View>
 
       <ScrollView
-        contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 20 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 32, gap: 24 }}
         showsVerticalScrollIndicator={false}
       >
-        <GlassCard style={{ marginBottom: 20, gap: 4 }}>
-          <BookMarked size={24} color={colors.primary} />
-          <Text style={{ fontSize: 16, fontWeight: '700', color: colors.foreground, fontFamily: 'PlusJakartaSans_700Bold', marginTop: 8 }}>
-            Quick Formula Reference
-          </Text>
-          <Text style={{ fontSize: 13, color: colors.mutedForeground, lineHeight: 20 }}>
-            Browse and bookmark important formulas organized by subject and chapter.
-          </Text>
-        </GlassCard>
-
         {loading ? (
-          <View style={{ gap: 12 }}>
-            {[1, 2, 3].map((i) => <Skeleton key={i} height={100} borderRadius={12} />)}
+          <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 80 }}>
+            <ActivityIndicator size="large" color={colors.primary} style={{ marginBottom: 16 }} />
+            <Text style={{ fontSize: 14, color: colors.mutedForeground, fontFamily: 'Inter_400Regular' }}>
+              Loading concepts...
+            </Text>
           </View>
-        ) : subjects.length === 0 ? (
-          <GlassCard style={{ alignItems: 'center', paddingVertical: 40 }}>
-            <Text style={{ color: colors.mutedForeground }}>No subjects available</Text>
-          </GlassCard>
         ) : (
-          <View style={{ gap: 12 }}>
-            {subjects.map((subject: any, i: number) => {
-              const name = typeof subject === 'string' ? subject : (subject.name || subject.title);
-              const subjectColor = SUBJECT_COLORS[name?.toLowerCase()] || colors.primary;
-              const chapters = subject.chapters || [];
-              return (
-                <GlassCard key={i} style={{ gap: 12 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                    <View style={{ padding: 10, borderRadius: 10, backgroundColor: subjectColor + '15' }}>
-                      <BookMarked size={20} color={subjectColor} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 16, fontWeight: '700', color: colors.foreground, fontFamily: 'PlusJakartaSans_700Bold' }}>
-                        {name}
-                      </Text>
-                      <Text style={{ fontSize: 12, color: colors.mutedForeground }}>
-                        {chapters.length || subject.chapterCount || '—'} chapters
-                      </Text>
-                    </View>
+          subjects.map((subject) => (
+            <MotiView
+              key={subject._id}
+              from={{ opacity: 0, translateY: 20 }}
+              animate={{ opacity: 1, translateY: 0 }}
+              transition={{ type: 'timing', duration: 300 }}
+            >
+              {/* Subject header — same as web */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  {/* Icon badge */}
+                  <View style={{ padding: 6, borderRadius: 10, backgroundColor: colors.muted }}>
+                    <SubjectIcon name={subject.title} />
                   </View>
+                  <View>
+                    <Text style={{ fontSize: 16, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold' }}>
+                      {subject.title}
+                    </Text>
+                    <Text style={{ fontSize: 12, color: colors.mutedForeground, fontFamily: 'Inter_400Regular' }}>
+                      {calculateCardsCount(subject)} Formula Cards
+                    </Text>
+                  </View>
+                </View>
+                <ChevronRight size={20} color={colors.mutedForeground} />
+              </View>
 
-                  {chapters.length > 0 ? (
-                    <View style={{ gap: 6 }}>
-                      {chapters.slice(0, 5).map((ch: any, ci: number) => (
-                        <Pressable
-                          key={ci}
-                          onPress={() => router.push({
-                            pathname: '/(auth)/formula-cards/[chapterId]',
-                            params: { chapterId: ch._id || ch.title || ch, title: ch.title || ch },
-                          } as any)}
-                          style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: ci < chapters.length - 1 ? 1 : 0, borderBottomColor: colors.border }}
-                        >
-                          <Text style={{ flex: 1, fontSize: 14, color: colors.foreground }}>{ch.title || ch.name || ch}</Text>
-                          <ChevronRight size={16} color={colors.mutedForeground} />
-                        </Pressable>
-                      ))}
-                      {chapters.length > 5 && (
-                        <Text style={{ fontSize: 12, color: colors.primary, textAlign: 'center', paddingVertical: 4 }}>
-                          +{chapters.length - 5} more chapters
-                        </Text>
-                      )}
-                    </View>
-                  ) : (
-                    <Pressable
-                      onPress={() => router.push({
-                        pathname: '/(auth)/formula-cards/[chapterId]',
-                        params: { chapterId: name, title: name },
-                      } as any)}
-                      style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+              <Text style={{ fontSize: 12, color: colors.mutedForeground, fontFamily: 'Inter_400Regular', marginBottom: 8 }}>
+                Explore chapters
+              </Text>
+
+              {/* Horizontal chapter cards — same as web: w-[130px] h-[140px] */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 12, paddingHorizontal: 2 }}
+              >
+                {subject.chapters.map((chapter: any) => (
+                  <Pressable
+                    key={chapter._id}
+                    onPress={() => openChapter(subject.title, chapter)}
+                    style={({ pressed }) => ({
+                      width: 130,
+                      height: 140,
+                      borderRadius: 16,
+                      padding: 12,
+                      backgroundColor: chapter.color || '#37B24D',
+                      justifyContent: 'space-between',
+                      overflow: 'hidden',
+                      opacity: pressed ? 0.9 : 1,
+                    })}
+                  >
+                    {/* Chapter title — same as web: font-bold text-white leading-tight */}
+                    <Text
+                      style={{ fontSize: 13, fontWeight: '700', color: '#fff', lineHeight: 18 }}
+                      numberOfLines={3}
                     >
-                      <Text style={{ fontSize: 14, color: colors.primary, fontWeight: '600' }}>Browse chapters</Text>
-                      <ChevronRight size={16} color={colors.primary} />
-                    </Pressable>
-                  )}
-                </GlassCard>
-              );
-            })}
-          </View>
+                      {chapter.title}
+                    </Text>
+
+                    {/* Cards count pill — same as web: bg-black/20 backdrop-blur text-white/90 */}
+                    <View style={{
+                      flexDirection: 'row', alignItems: 'center', gap: 4,
+                      alignSelf: 'flex-start',
+                      backgroundColor: 'rgba(0,0,0,0.25)',
+                      borderRadius: 999,
+                      paddingHorizontal: 8,
+                      paddingVertical: 3,
+                    }}>
+                      <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.9)', fontWeight: '500' }}>
+                        📄 {chapter.cardsCount || 0}
+                      </Text>
+                    </View>
+
+                    {/* Decorative circle — same as web */}
+                    <View style={{
+                      position: 'absolute',
+                      bottom: -16,
+                      right: -16,
+                      width: 64,
+                      height: 64,
+                      borderRadius: 32,
+                      backgroundColor: 'rgba(255,255,255,0.1)',
+                    }} />
+
+                    {/* BG Image overlay if provided */}
+                    {chapter.bgColor && (
+                      <Image
+                        source={{ uri: chapter.bgColor }}
+                        style={{
+                          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                          opacity: 0.2,
+                        }}
+                        resizeMode="cover"
+                      />
+                    )}
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </MotiView>
+          ))
         )}
       </ScrollView>
     </View>
   );
-}
+};
+
+export default FormulaCards;

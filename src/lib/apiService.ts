@@ -249,6 +249,13 @@ export const apiService = {
       api.post('/revisions/exam-dates', data),
   },
 
+  // Analytics APIs
+  analytics: {
+    getSubjectAccuracy: () => api.get('/analytics/subject-accuracy'),
+    getAccuracyTrend: (weeks: number) => api.get('/analytics/accuracy-trend', { params: { weeks } }),
+    getWeaknessHeatmap: (subject?: string) => api.get('/analytics/weakness-heatmap', { params: { subject } }),
+  },
+
   // Test Series APIs
   tests: {
     getTests: (filters?: any) => api.get('/tests', { params: filters }),

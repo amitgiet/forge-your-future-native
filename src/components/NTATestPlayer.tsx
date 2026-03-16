@@ -1,46 +1,14 @@
-import React, {
-  useState,
-  useEffect,
-  useMemo,
-  useCallback,
-  useRef,
-} from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { View, Text, ScrollView, Pressable, Image, TextInput, Alert, Modal, Dimensions } from 'react-native';
+import { MotiView, AnimatePresence } from 'moti';
 import {
-  View,
-  Text,
-  ScrollView,
-  Pressable,
-  Image,
-  StyleSheet,
-} from "react-native";
-import { useTheme } from "@/contexts/ThemeContext";
-import { Button } from "@/components/ui/Button";
-import { Badge } from "@/components/ui/Badge";
-import {
-  Clock,
-  ChevronLeft,
-  ChevronRight,
-  Flag,
-  Star,
-  Send,
-  XCircle,
-  CheckCircle,
-} from "lucide-react-native";
-
-export type QuestionState =
-  | "not-visited"
-  | "not-answered"
-  | "answered"
-  | "marked-review"
-  | "answered-marked";
-
-export interface QuestionMeta {
-  state: QuestionState;
-  selectedOption: number | null;
-  bookmarked: boolean;
-  note: string;
-  timeSpent: number;
-}
+  ChevronLeft, ChevronRight, Clock, Menu, X, Flag, Star, StickyNote,
+  AlertTriangle, Eraser, CheckCircle2, Send, Eye, BookOpen
+} from 'lucide-react-native';
+import { useTheme } from '@/contexts/ThemeContext';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export interface NTAQuestion {
   _id?: string;
@@ -49,9 +17,11 @@ export interface NTAQuestion {
   options: Record<string, string> | string[];
   correctAnswer?: string | number | null;
   explanation?: string;
-  imageUrl?: string;
+  subject?: string;
+  chapter?: string;
+  topic?: string;
   difficulty?: string;
-  marks?: number;
+  imageUrl?: string;
 }
 
 export interface NTASection {
@@ -61,126 +31,167 @@ export interface NTASection {
   endIndex: number;
 }
 
+export type QuestionState = 'not-visited' | 'not-answered' | 'answered' | 'marked-review' | 'answered-marked';
+
+export interface QuestionMeta {
+  state: QuestionState;
+  selectedOption: number | null;
+  bookmarked: boolean;
+  note: string;
+  timeSpent: number;
+}
+
+export interface NTATestPlayerProps {
+  questions: NTAQuestion[];
+  sections?: NTASection[];
+  title?: string;
+  duration: number;
+  onSubmit: (data: NTASubmitData) => void;
+  onAnswerChange?: (questionIndex: number, answer: number | null, meta: QuestionMeta) => void;
+  initialMeta?: QuestionMeta[];
+  readOnly?: boolean;
+}
+
 export interface NTASubmitData {
   answers: (number | null)[];
   meta: QuestionMeta[];
   timeTaken: number;
 }
 
-interface NTATestPlayerProps {
-  questions: NTAQuestion[];
-  sections?: NTASection[];
-  title?: string;
-  duration: number;
-  onSubmit: (data: NTASubmitData) => void | Promise<void>;
-  readOnly?: boolean;
+const DEFAULT_SECTIONS: NTASection[] = [
+  { name: 'Physics', emoji: '⚙️', startIndex: 0, endIndex: 44 },
+  { name: 'Chemistry', emoji: '🧪', startIndex: 45, endIndex: 89 },
+  { name: 'Botany', emoji: '🌿', startIndex: 90, endIndex: 134 },
+  { name: 'Zoology', emoji: '🐾', startIndex: 135, endIndex: 179 },
+];
+
+function getOptionArray(q: NTAQuestion): string[] {
+  if (Array.isArray(q.options)) return q.options;
+  return ['A', 'B', 'C', 'D'].map((k) => (q.options as Record<string, string>)[k] ?? '');
 }
 
-const optionKeys = ["A", "B", "C", "D"];
+function formatTime(s: number): string {
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+}
 
-const getOptions = (q: NTAQuestion): string[] => {
-  if (Array.isArray(q.options)) return q.options;
-  return optionKeys
-    .map((k) => (q.options as Record<string, string>)[k] ?? "")
-    .filter(Boolean);
-};
-
-export const NTATestPlayer = ({
+const NTATestPlayer: React.FC<NTATestPlayerProps> = ({
   questions,
   sections: sectionsProp,
-  title = "Test",
+  title = 'Mock Test',
   duration,
   onSubmit,
+  onAnswerChange,
+  initialMeta,
   readOnly = false,
-}: NTATestPlayerProps) => {
+}) => {
   const { colors } = useTheme();
-  const total = questions.length;
+  const insets = useSafeAreaInsets();
+  const totalQ = questions.length;
+
   const sections = useMemo(() => {
     if (sectionsProp && sectionsProp.length > 0) return sectionsProp;
-    if (total <= 50)
-      return [{ name: "All", startIndex: 0, endIndex: total - 1 }];
-    const defaultSections: NTASection[] = [
-      {
-        name: "Physics",
-        emoji: "⚛️",
-        startIndex: 0,
-        endIndex: Math.min(total - 1, 44),
-      },
-      {
-        name: "Chemistry",
-        emoji: "🧪",
-        startIndex: 45,
-        endIndex: Math.min(total - 1, 89),
-      },
-      { name: "Biology", emoji: "🧬", startIndex: 90, endIndex: total - 1 },
-    ];
-    return defaultSections.filter((s) => s.startIndex < total);
-  }, [sectionsProp, total]);
+    if (totalQ <= 50) return [{ name: 'All', emoji: '📝', startIndex: 0, endIndex: totalQ - 1 }];
+    return DEFAULT_SECTIONS.map((s) => ({
+      ...s,
+      endIndex: Math.min(s.endIndex, totalQ - 1),
+    })).filter((s) => s.startIndex < totalQ);
+  }, [sectionsProp, totalQ]);
 
   const [currentQ, setCurrentQ] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(duration);
   const [meta, setMeta] = useState<QuestionMeta[]>(() =>
-    Array.from({ length: total }, () => ({
-      state: "not-visited",
+    initialMeta ??
+    Array.from({ length: totalQ }, () => ({
+      state: 'not-visited' as QuestionState,
       selectedOption: null,
       bookmarked: false,
-      note: "",
+      note: '',
       timeSpent: 0,
-    })),
+    }))
   );
-  const questionStartRef = useRef(Date.now());
+  const [timeLeft, setTimeLeft] = useState(duration);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [noteOpen, setNoteOpen] = useState(false);
+  const [showSubmitDialog, setShowSubmitDialog] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const questionEntryTime = useRef(Date.now());
 
   useEffect(() => {
-    if (readOnly) return;
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          handleSubmit();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [readOnly]);
-
-  useEffect(() => {
+    questionEntryTime.current = Date.now();
     setMeta((prev) => {
       const next = [...prev];
-      const current = next[currentQ];
-      if (current.state === "not-visited") {
-        next[currentQ] = { ...current, state: "not-answered" };
+      if (next[currentQ].state === 'not-visited') {
+        next[currentQ] = { ...next[currentQ], state: 'not-answered' };
       }
       return next;
     });
-    questionStartRef.current = Date.now();
   }, [currentQ]);
 
-  const recordTime = useCallback(() => {
-    const elapsed = Math.round((Date.now() - questionStartRef.current) / 1000);
+  const recordTimeSpent = useCallback(() => {
+    const elapsed = Math.round((Date.now() - questionEntryTime.current) / 1000);
     setMeta((prev) => {
       const next = [...prev];
-      next[currentQ] = {
-        ...next[currentQ],
-        timeSpent: next[currentQ].timeSpent + elapsed,
-      };
+      next[currentQ] = { ...next[currentQ], timeSpent: next[currentQ].timeSpent + elapsed };
       return next;
     });
   }, [currentQ]);
 
-  const updateAnswer = (index: number) => {
+  useEffect(() => {
+    if (readOnly) return;
+    const interval = setInterval(() => {
+      setTimeLeft((t) => {
+        if (t <= 1) {
+          clearInterval(interval);
+          handleSubmit();
+          return 0;
+        }
+        return t - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [readOnly]);
+
+  const currentSection = useMemo(() => sections.find((s) => currentQ >= s.startIndex && currentQ <= s.endIndex) ?? sections[0], [currentQ, sections]);
+
+  const stats = useMemo(() => {
+    const s = { answered: 0, notAnswered: 0, markedReview: 0, notVisited: 0, answeredMarked: 0 };
+    meta.forEach((m) => {
+      if (m.state === 'answered') s.answered++;
+      else if (m.state === 'not-answered') s.notAnswered++;
+      else if (m.state === 'marked-review') s.markedReview++;
+      else if (m.state === 'not-visited') s.notVisited++;
+      else if (m.state === 'answered-marked') s.answeredMarked++;
+    });
+    return s;
+  }, [meta]);
+
+  const sectionStats = useCallback((sec: NTASection) => {
+    let attempted = 0;
+    let total = 0;
+    for (let i = sec.startIndex; i <= Math.min(sec.endIndex, totalQ - 1); i++) {
+      total++;
+      if (meta[i].state === 'answered' || meta[i].state === 'answered-marked') attempted++;
+    }
+    return { attempted, total };
+  }, [meta, totalQ]);
+
+  const selectOption = (optIndex: number) => {
     if (readOnly) return;
     setMeta((prev) => {
       const next = [...prev];
       const cur = next[currentQ];
-      const nowState: QuestionState =
-        cur.state === "marked-review" || cur.state === "answered-marked"
-          ? "answered-marked"
-          : "answered";
-      next[currentQ] = { ...cur, selectedOption: index, state: nowState };
+      const wasMarked = cur.state === 'marked-review' || cur.state === 'answered-marked';
+      next[currentQ] = {
+        ...cur,
+        selectedOption: optIndex,
+        state: wasMarked ? 'answered-marked' : 'answered',
+      };
       return next;
     });
+    onAnswerChange?.(currentQ, optIndex, meta[currentQ]);
   };
 
   const clearAnswer = () => {
@@ -188,34 +199,28 @@ export const NTATestPlayer = ({
     setMeta((prev) => {
       const next = [...prev];
       const cur = next[currentQ];
+      const wasMarked = cur.state === 'marked-review' || cur.state === 'answered-marked';
       next[currentQ] = {
         ...cur,
         selectedOption: null,
-        state:
-          cur.state === "marked-review" || cur.state === "answered-marked"
-            ? "marked-review"
-            : "not-answered",
+        state: wasMarked ? 'marked-review' : 'not-answered',
       };
       return next;
     });
+    onAnswerChange?.(currentQ, null, meta[currentQ]);
   };
 
-  const toggleReview = () => {
+  const toggleMarkReview = () => {
     if (readOnly) return;
     setMeta((prev) => {
       const next = [...prev];
       const cur = next[currentQ];
-      if (cur.state === "marked-review" || cur.state === "answered-marked") {
-        next[currentQ] = {
-          ...cur,
-          state: cur.selectedOption !== null ? "answered" : "not-answered",
-        };
+      const hasAnswer = cur.selectedOption !== null;
+      const isMarked = cur.state === 'marked-review' || cur.state === 'answered-marked';
+      if (isMarked) {
+        next[currentQ] = { ...cur, state: hasAnswer ? 'answered' : 'not-answered' };
       } else {
-        next[currentQ] = {
-          ...cur,
-          state:
-            cur.selectedOption !== null ? "answered-marked" : "marked-review",
-        };
+        next[currentQ] = { ...cur, state: hasAnswer ? 'answered-marked' : 'marked-review' };
       }
       return next;
     });
@@ -224,359 +229,553 @@ export const NTATestPlayer = ({
   const toggleBookmark = () => {
     setMeta((prev) => {
       const next = [...prev];
-      next[currentQ] = {
-        ...next[currentQ],
-        bookmarked: !next[currentQ].bookmarked,
-      };
+      next[currentQ] = { ...next[currentQ], bookmarked: !next[currentQ].bookmarked };
+      return next;
+    });
+  };
+
+  const updateNote = (text: string) => {
+    setMeta((prev) => {
+      const next = [...prev];
+      next[currentQ] = { ...next[currentQ], note: text };
       return next;
     });
   };
 
   const goTo = (index: number) => {
-    if (index < 0 || index >= total) return;
-    recordTime();
+    if (index < 0 || index >= totalQ) return;
+    recordTimeSpent();
     setCurrentQ(index);
+    setPaletteOpen(false);
   };
 
-  const nextQuestion = () => {
-    recordTime();
-    if (currentQ < total - 1) setCurrentQ(currentQ + 1);
+  const saveAndNext = () => {
+    recordTimeSpent();
+    if (currentQ < totalQ - 1) setCurrentQ(currentQ + 1);
+  };
+
+  const markAndNext = () => {
+    if (!readOnly) {
+      setMeta((prev) => {
+        const next = [...prev];
+        const cur = next[currentQ];
+        const hasAnswer = cur.selectedOption !== null;
+        next[currentQ] = { ...cur, state: hasAnswer ? 'answered-marked' : 'marked-review' };
+        return next;
+      });
+    }
+    recordTimeSpent();
+    if (currentQ < totalQ - 1) setCurrentQ(currentQ + 1);
   };
 
   const handleSubmit = async () => {
-    recordTime();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    recordTimeSpent();
     const answers = meta.map((m) => m.selectedOption);
     await onSubmit({ answers, meta, timeTaken: duration - timeLeft });
   };
 
-  const current = questions[currentQ];
-  const opts = getOptions(current);
+  const q = questions[currentQ];
+  const opts = getOptionArray(q);
   const curMeta = meta[currentQ];
-  const timerClass =
-    timeLeft < 300
-      ? colors.destructive
-      : timeLeft < 900
-        ? colors.warning
-        : colors.primary;
-  const fmtTime = `${Math.floor(timeLeft / 60)
-    .toString()
-    .padStart(2, "0")}:${(timeLeft % 60).toString().padStart(2, "0")}`;
+  const isMarked = curMeta.state === 'marked-review' || curMeta.state === 'answered-marked';
+  const optionLabels = ['A', 'B', 'C', 'D'];
 
-  const stats = useMemo(() => {
-    const out = {
-      answered: 0,
-      notAnswered: 0,
-      markedReview: 0,
-      notVisited: 0,
-      answeredMarked: 0,
-    };
-    meta.forEach((m) => {
-      out[
-        m.state === "answered-marked"
-          ? "answeredMarked"
-          : m.state === "answered"
-            ? "answered"
-            : m.state === "not-visited"
-              ? "notVisited"
-              : m.state === "not-answered"
-                ? "notAnswered"
-                : "markedReview"
-      ]++;
-    });
-    return out;
-  }, [meta]);
+  const timerUrgent = timeLeft < 300;
+  const timerWarning = timeLeft < 900 && !timerUrgent;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <View
-        style={{
-          padding: 12,
-          borderBottomWidth: 1,
-          borderColor: colors.border,
-          backgroundColor: colors.card,
-        }}
-      >
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <Text
-            style={{
-              color: colors.foreground,
-              fontWeight: "700",
-              fontSize: 16,
-            }}
-          >
-            {title}
-          </Text>
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              padding: 6,
-              borderRadius: 10,
-              backgroundColor: colors.primary + "20",
-            }}
-          >
-            <Clock size={14} color={timerClass} />
-            <Text
-              style={{ color: timerClass, fontWeight: "700", marginLeft: 4 }}
-            >
-              {fmtTime}
-            </Text>
+      {/* ═══ TOP BAR ═══ */}
+      <View style={{ paddingTop: insets.top, backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border, paddingHorizontal: 12, paddingBottom: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, marginTop: 8 }}>
+          <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground, flex: 1, marginRight: 8 }} numberOfLines={1}>{title}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: timerUrgent ? colors.destructive + '26' : timerWarning ? colors.warning + '26' : colors.primary + '1A' }}>
+            <Clock size={14} color={timerUrgent ? colors.destructive : timerWarning ? colors.warning : colors.primary} />
+            <Text style={{ fontSize: 12, fontWeight: '700', fontFamily: 'Courier', color: timerUrgent ? colors.destructive : timerWarning ? colors.warning : colors.primary }}>{formatTime(timeLeft)}</Text>
           </View>
         </View>
-        <View
-          style={{
-            marginTop: 8,
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <Badge variant="secondary">
-            Q {currentQ + 1}/{total}
-          </Badge>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-            <Badge variant="outline">{current.difficulty ?? "Medium"}</Badge>
+
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Badge variant="secondary"><Text style={{ fontSize: 12, fontWeight: '500' }}>{currentSection.emoji} {currentSection.name}</Text></Badge>
+            <Text style={{ fontSize: 12, fontWeight: '500', color: colors.mutedForeground }}>Q {currentQ + 1}/{totalQ}</Text>
+          </View>
+
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Pressable onPress={() => setPaletteOpen(true)} style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}>
+              <Menu size={16} color={colors.foreground} />
+            </Pressable>
+            {!readOnly && (
+              <Button variant="destructive" size="sm" onPress={() => setShowSubmitDialog(true)} style={{ height: 32, paddingHorizontal: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Send size={14} color="#fff" />
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#fff' }}>Submit</Text>
+                </View>
+              </Button>
+            )}
           </View>
         </View>
       </View>
 
-      <ScrollView style={{ flex: 1, padding: 12 }}>
-        <View
-          style={{
-            marginBottom: 12,
-            padding: 12,
-            borderRadius: 14,
-            backgroundColor: colors.card,
-            borderWidth: 1,
-            borderColor: colors.border,
-          }}
-        >
-          <Text
-            style={{
-              color: colors.foreground,
-              fontWeight: "700",
-              marginBottom: 8,
-            }}
+      {/* ═══ QUESTION AREA ═══ */}
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+        <AnimatePresence >
+          <MotiView
+            key={currentQ}
+            from={{ opacity: 0, translateX: 20 }}
+            animate={{ opacity: 1, translateX: 0 }}
+            exit={{ opacity: 0, translateX: -20 }}
+            transition={{ type: 'timing', duration: 150 }}
           >
-            Question {currentQ + 1}
-          </Text>
-          <Text style={{ color: colors.foreground, lineHeight: 22 }}>
-            {current.question}
-          </Text>
-          {current.imageUrl ? (
-            <Image
-              source={{ uri: current.imageUrl }}
-              style={{
-                width: "100%",
-                height: 170,
-                borderRadius: 10,
-                marginTop: 10,
-              }}
-              resizeMode="cover"
-            />
-          ) : null}
-        </View>
 
-        <View style={{ gap: 8 }}>
-          {opts.map((opt, idx) => {
-            const selected = curMeta.selectedOption === idx;
-            const right = { A: 0, B: 1, C: 2, D: 3 };
-            const correct =
-              typeof current.correctAnswer === "string"
-                ? right[current.correctAnswer as string]
-                : current.correctAnswer;
-            const isCorrect = readOnly && correct === idx;
-            const isWrong = readOnly && selected && correct !== idx;
-            return (
-              <Pressable
-                key={`opt-${idx}`}
-                onPress={() => updateAnswer(idx)}
-                disabled={readOnly}
-                style={({ pressed }) => ({
-                  borderWidth: 1,
-                  borderColor: isCorrect
-                    ? colors.success
-                    : isWrong
-                      ? colors.destructive
-                      : selected
-                        ? colors.primary
-                        : colors.border,
-                  backgroundColor: selected
-                    ? colors.primary + "20"
-                    : colors.card,
+            {/* Header row */}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'flex-start',
+                justifyContent: 'space-between',
+                marginBottom: 12,
+              }}
+            >
+              <View
+                style={{
+                  backgroundColor: colors.primary + '1A',
+                  paddingHorizontal: 8,
+                  paddingVertical: 2,
+                  borderRadius: 999,
+                }}
+              >
+                <Text style={{ fontSize: 12, fontWeight: '700', color: colors.primary }}>
+                  Question {currentQ + 1}
+                </Text>
+              </View>
+
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Pressable
+                  onPress={toggleBookmark}
+                  style={{
+                    padding: 6,
+                    borderRadius: 8,
+                    marginLeft: 6,
+                    backgroundColor: curMeta.bookmarked
+                      ? colors.warning + '1A'
+                      : 'transparent',
+                  }}
+                >
+                  <Star
+                    size={16}
+                    color={curMeta.bookmarked ? colors.warning : colors.mutedForeground}
+                    fill={curMeta.bookmarked ? colors.warning : 'none'}
+                  />
+                </Pressable>
+
+                <Pressable
+                  onPress={() => setNoteOpen(!noteOpen)}
+                  style={{
+                    padding: 6,
+                    borderRadius: 8,
+                    marginLeft: 6,
+                    backgroundColor: curMeta.note
+                      ? colors.info + '1A'
+                      : 'transparent',
+                  }}
+                >
+                  <StickyNote
+                    size={16}
+                    color={curMeta.note ? colors.info : colors.mutedForeground}
+                  />
+                </Pressable>
+
+                {isMarked && (
+                  <View
+                    style={{
+                      padding: 6,
+                      borderRadius: 8,
+                      marginLeft: 6,
+                      backgroundColor: colors.secondary + '1A',
+                    }}
+                  >
+                    <Flag size={16} color={colors.secondary} fill={colors.secondary} />
+                  </View>
+                )}
+              </View>
+            </View>
+
+            {/* Notes Section */}
+            <AnimatePresence>
+              {noteOpen && (
+                <MotiView
+                  from={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ type: 'timing', duration: 200 }}
+                  style={{ overflow: 'hidden', marginBottom: 12 }}
+                >
+                  <TextInput
+                    placeholder="Add a personal note for this question..."
+                    placeholderTextColor={colors.mutedForeground}
+                    value={curMeta.note}
+                    onChangeText={updateNote}
+                    multiline
+                    editable={!readOnly}
+                    style={{
+                      minHeight: 60,
+                      padding: 12,
+                      backgroundColor: colors.muted + '80',
+                      borderRadius: 12,
+                      fontSize: 14,
+                      color: colors.foreground,
+                      textAlignVertical: 'top',
+                    }}
+                  />
+                </MotiView>
+              )}
+            </AnimatePresence>
+
+            {/* Question */}
+            <Text
+              style={{
+                fontSize: 14,
+                lineHeight: 22,
+                color: colors.foreground,
+                marginBottom: 16,
+              }}
+            >
+              {q.question}
+            </Text>
+
+            {/* Question Image */}
+            {q.imageUrl && (
+              <View
+                style={{
+                  marginBottom: 16,
                   borderRadius: 12,
+                  overflow: 'hidden',
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                }}
+              >
+                <Image
+                  source={{ uri: q.imageUrl }}
+                  style={{ width: '100%', height: 240, resizeMode: 'contain' }}
+                />
+              </View>
+            )}
+
+            {/* Options */}
+            <View style={{ gap: 10 }}>
+              {opts.map((opt, i) => {
+                const isSelected = curMeta.selectedOption === i;
+
+                let bg = colors.card;
+                let borderColor = colors.border;
+                let textColor = colors.foreground;
+
+                let badgeBg = 'transparent';
+                let badgeBorder = colors.mutedForeground + '4D';
+                let badgeText = colors.mutedForeground;
+
+                if (readOnly) {
+                  const correctIdx =
+                    typeof q.correctAnswer === 'string'
+                      ? q.correctAnswer.charCodeAt(0) - 65
+                      : typeof q.correctAnswer === 'number'
+                        ? q.correctAnswer
+                        : null;
+
+                  if (correctIdx === i) {
+                    borderColor = colors.success;
+                    bg = colors.success + '1A';
+                    badgeBg = colors.success;
+                    badgeBorder = colors.success;
+                    badgeText = '#fff';
+                  } else if (isSelected && correctIdx !== i) {
+                    borderColor = colors.destructive;
+                    bg = colors.destructive + '1A';
+                    badgeBg = colors.destructive;
+                    badgeBorder = colors.destructive;
+                    badgeText = '#fff';
+                  }
+                } else if (isSelected) {
+                  borderColor = colors.primary;
+                  bg = colors.primary + '1A';
+                  badgeBg = colors.primary;
+                  badgeBorder = colors.primary;
+                  badgeText = '#fff';
+                }
+
+                return (
+                  <Pressable
+                    key={i}
+                    onPress={() => selectOption(i)}
+                    disabled={readOnly}
+                    style={({ pressed }) => ({
+                      flexDirection: 'row',
+                      alignItems: 'flex-start',
+                      padding: 14,
+                      borderRadius: 12,
+                      borderWidth: 2,
+                      borderColor,
+                      backgroundColor: bg,
+                      opacity: pressed && !readOnly ? 0.95 : 1,
+                    })}
+                  >
+                    <View
+                      style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: 14,
+                        borderWidth: 2,
+                        borderColor: badgeBorder,
+                        backgroundColor: badgeBg,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginRight: 12,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          fontWeight: '700',
+                          color: badgeText,
+                        }}
+                      >
+                        {optionLabels[i]}
+                      </Text>
+                    </View>
+
+                    <Text
+                      style={{
+                        flex: 1,
+                        fontSize: 14,
+                        lineHeight: 22,
+                        color: textColor,
+                        marginTop: 2,
+                      }}
+                    >
+                      {opt}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {/* Explanation */}
+            {readOnly && q.explanation && (
+              <View
+                style={{
+                  marginTop: 16,
                   padding: 12,
-                  opacity: pressed ? 0.8 : 1,
-                })}
+                  borderRadius: 12,
+                  backgroundColor: colors.muted + '80',
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                }}
               >
                 <View
-                  style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    marginBottom: 4,
+                  }}
                 >
-                  <Text style={{ color: colors.foreground, fontWeight: "700" }}>
-                    {optionKeys[idx]}.{" "}
+                  <BookOpen size={14} color={colors.primary} />
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontWeight: '600',
+                      color: colors.primary,
+                      marginLeft: 4,
+                    }}
+                  >
+                    Explanation
                   </Text>
-                  <Text style={{ color: colors.foreground, flex: 1 }}>
-                    {opt}
-                  </Text>
-                  {isCorrect ? (
-                    <CheckCircle size={16} color={colors.success} />
-                  ) : null}
-                  {isWrong ? (
-                    <XCircle size={16} color={colors.destructive} />
-                  ) : null}
                 </View>
-              </Pressable>
-            );
-          })}
-        </View>
 
-        {readOnly && current.explanation ? (
-          <View
-            style={{
-              marginTop: 12,
-              padding: 10,
-              borderRadius: 12,
-              backgroundColor: colors.success + "10",
-              borderWidth: 1,
-              borderColor: colors.success + "30",
-            }}
-          >
-            <Text
-              style={{
-                color: colors.foreground,
-                fontWeight: "600",
-                marginBottom: 4,
-              }}
-            >
-              Explanation
-            </Text>
-            <Text style={{ color: colors.foreground }}>
-              {current.explanation}
-            </Text>
-          </View>
-        ) : null}
+                <Text
+                  style={{
+                    fontSize: 14,
+                    lineHeight: 20,
+                    color: colors.mutedForeground,
+                  }}
+                >
+                  {q.explanation}
+                </Text>
+              </View>
+            )}
+          </MotiView>
+        </AnimatePresence>
       </ScrollView>
 
-      <View
-        style={{
-          padding: 12,
-          borderTopWidth: 1,
-          borderColor: colors.border,
-          backgroundColor: colors.card,
-        }}
-      >
-        <View style={{ flexDirection: "row", gap: 6, marginBottom: 8 }}>
-          <Button variant="outline" size="sm" onPress={clearAnswer}>
-            Clear
+      {/* ═══ BOTTOM CONTROLS ═══ */}
+      <View style={{ padding: 8, paddingBottom: Math.max(insets.bottom, 8), backgroundColor: colors.card, borderTopWidth: 1, borderTopColor: colors.border }}>
+        <View style={{ flexDirection: 'row', gap: 4, marginBottom: 8 }}>
+          <Button variant="outline" size="sm" style={{ flex: 1, height: 32 }} onPress={clearAnswer} disabled={readOnly || curMeta.selectedOption === null}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Eraser size={14} color={readOnly || curMeta.selectedOption === null ? colors.mutedForeground : colors.foreground} />
+              <Text style={{ fontSize: 12, fontWeight: '600', color: readOnly || curMeta.selectedOption === null ? colors.mutedForeground : colors.foreground }}>Clear</Text>
+            </View>
           </Button>
-          <Button
-            variant={curMeta.state.includes("marked") ? "secondary" : "outline"}
-            size="sm"
-            onPress={toggleReview}
-          >
-            <Flag size={16} color={colors.foreground} />
-            {curMeta.state.includes("marked") ? "Unmark" : "Mark Review"}
+          <Button variant={isMarked ? 'primary' : 'outline'} size="sm" style={{ flex: 1, height: 32, backgroundColor: isMarked ? colors.secondary : 'transparent' }} onPress={toggleMarkReview} disabled={readOnly}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Flag size={14} color={isMarked ? '#fff' : colors.foreground} />
+              <Text style={{ fontSize: 12, fontWeight: '600', color: isMarked ? '#fff' : colors.foreground }}>{isMarked ? 'Unmark' : 'Review'}</Text>
+            </View>
           </Button>
-          <Button
-            variant={curMeta.bookmarked ? "secondary" : "outline"}
-            size="sm"
-            onPress={toggleBookmark}
-          >
-            <Star size={16} color={colors.foreground} /> Bookmark
+          <Button variant={curMeta.bookmarked ? 'primary' : 'outline'} size="sm" style={{ flex: 1, height: 32, backgroundColor: curMeta.bookmarked ? colors.warning : 'transparent' }} onPress={toggleBookmark}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Star size={14} color={curMeta.bookmarked ? '#fff' : colors.foreground} />
+              <Text style={{ fontSize: 12, fontWeight: '600', color: curMeta.bookmarked ? '#fff' : colors.foreground }}>Bookmark</Text>
+            </View>
           </Button>
         </View>
 
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: 8,
-          }}
-        >
-          <Pressable
-            onPress={() => goTo(currentQ - 1)}
-            disabled={currentQ === 0}
-            style={styles.navBtn}
-          >
-            <ChevronLeft
-              size={18}
-              color={
-                currentQ === 0 ? colors.mutedForeground : colors.foreground
-              }
-            />
-          </Pressable>
-          <View style={{ flexDirection: "row", gap: 8, flex: 1 }}>
-            <Button
-              variant="secondary"
-              size="sm"
-              onPress={nextQuestion}
-              disabled={currentQ >= total - 1}
-            >
-              Next
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onPress={() => goTo(currentQ + 1)}
-              disabled={currentQ >= total - 1}
-            >
-              Q {currentQ + 2}
-            </Button>
-          </View>
-          <Button variant="destructive" size="sm" onPress={handleSubmit}>
-            <Send size={16} color="#fff" />
-            Submit
+        <View style={{ flexDirection: 'row', gap: 6 }}>
+          <Button variant="outline" size="sm" style={{ width: 40, height: 40 }} onPress={() => goTo(currentQ - 1)} disabled={currentQ === 0}>
+            <ChevronLeft size={16} color={currentQ === 0 ? colors.mutedForeground : colors.foreground} />
           </Button>
+          {!readOnly ? (
+            <>
+              <Button variant="secondary" size="sm" style={{ flex: 1, height: 40 }} onPress={saveAndNext}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: colors.foreground }}>Save & Next</Text>
+                  <ChevronRight size={16} color={colors.foreground} />
+                </View>
+              </Button>
+              <Button size="sm" style={{ flex: 1, height: 40, backgroundColor: colors.secondary }} onPress={markAndNext}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#fff' }}>Mark & Next</Text>
+                  <ChevronRight size={16} color="#fff" />
+                </View>
+              </Button>
+            </>
+          ) : (
+            <Button variant="secondary" size="sm" style={{ flex: 1, height: 40 }} onPress={() => goTo(currentQ + 1)} disabled={currentQ >= totalQ - 1}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: colors.foreground }}>Next</Text>
+                <ChevronRight size={16} color={colors.foreground} />
+              </View>
+            </Button>
+          )}
         </View>
-
-        <ScrollView horizontal style={{ marginTop: 8 }}>
-          {meta.map((m, i) => (
-            <Pressable
-              key={`pal-${i}`}
-              onPress={() => goTo(i)}
-              style={{
-                width: 34,
-                height: 34,
-                borderRadius: 8,
-                borderWidth: 1,
-                borderColor: i === currentQ ? colors.primary : colors.border,
-                backgroundColor:
-                  m.selectedOption != null
-                    ? colors.success + "20"
-                    : colors.card,
-                alignItems: "center",
-                justifyContent: "center",
-                marginRight: 6,
-              }}
-            >
-              <Text style={{ color: colors.foreground, fontSize: 12 }}>
-                {i + 1}
-              </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
       </View>
+
+      {/* Palette Modal */}
+      <Modal visible={paletteOpen} animationType="slide" transparent>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+          <Pressable style={{ flex: 1 }} onPress={() => setPaletteOpen(false)} />
+          <View style={{ backgroundColor: colors.card, height: '85%', borderTopLeftRadius: 24, borderTopRightRadius: 24 }}>
+            <QuestionPalette
+              sections={sections} meta={meta} currentQ={currentQ} totalQ={totalQ}
+              stats={stats} sectionStats={sectionStats}
+              onSelect={goTo} onClose={() => setPaletteOpen(false)} colors={colors}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Submit Warning Modal */}
+      <Modal visible={showSubmitDialog} transparent animationType="fade">
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <View style={{ backgroundColor: colors.card, width: '100%', borderRadius: 24, padding: 24 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              <AlertTriangle size={24} color={colors.warning} />
+              <Text style={{ fontSize: 18, fontWeight: '700', color: colors.foreground }}>Submit Test?</Text>
+            </View>
+            <Text style={{ fontSize: 14, color: colors.mutedForeground, marginBottom: 20 }}>Are you sure you want to submit? You cannot change answers after submission.</Text>
+
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
+              <View style={{ width: '48%', backgroundColor: colors.success + '1A', padding: 12, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <CheckCircle2 size={16} color={colors.success} />
+                <Text style={{ fontSize: 12, fontWeight: '600', color: colors.success }}>Ans: {stats.answered + stats.answeredMarked}</Text>
+              </View>
+              <View style={{ width: '48%', backgroundColor: colors.destructive + '1A', padding: 12, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <X size={16} color={colors.destructive} />
+                <Text style={{ fontSize: 12, fontWeight: '600', color: colors.destructive }}>Unans: {stats.notAnswered}</Text>
+              </View>
+              <View style={{ width: '48%', backgroundColor: colors.secondary + '1A', padding: 12, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Flag size={16} color={colors.secondary} />
+                <Text style={{ fontSize: 12, fontWeight: '600', color: colors.secondary }}>Rev: {stats.markedReview + stats.answeredMarked}</Text>
+              </View>
+              <View style={{ width: '48%', backgroundColor: colors.muted, padding: 12, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Eye size={16} color={colors.mutedForeground} />
+                <Text style={{ fontSize: 12, fontWeight: '600', color: colors.mutedForeground }}>Not Vis: {stats.notVisited}</Text>
+              </View>
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <Button variant="outline" style={{ flex: 1 }} onPress={() => setShowSubmitDialog(false)}>
+                <Text style={{ color: colors.foreground }}>Continue</Text>
+              </Button>
+              <Button variant="destructive" style={{ flex: 1 }} onPress={handleSubmit} loading={isSubmitting}>
+                <Text style={{ color: '#fff', fontWeight: '700' }}>Submit Test</Text>
+              </Button>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
-  navBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#999",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-});
+const STATE_COLORS: Record<QuestionState, { bg: string, border: string, text: string }> = {
+  'not-visited': { bg: 'transparent', border: '#8888884D', text: '#888' },
+  'not-answered': { bg: '#ef444433', border: '#ef444466', text: '#ef4444' },
+  'answered': { bg: '#10b98133', border: '#10b98166', text: '#10b981' },
+  'marked-review': { bg: '#8b5cf633', border: '#8b5cf666', text: '#8b5cf6' },
+  'answered-marked': { bg: '#3b82f633', border: '#3b82f666', text: '#3b82f6' },
+};
+
+const QuestionPalette: React.FC<any> = ({ sections, meta, currentQ, totalQ, stats, sectionStats, onSelect, onClose, colors }) => {
+  const [activeSection, setActiveSection] = useState(0);
+
+  return (
+    <View style={{ flex: 1 }}>
+      <View style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Text style={{ fontSize: 16, fontWeight: '700', color: colors.foreground }}>Question Palette</Text>
+        <Pressable onPress={onClose}><X size={20} color={colors.mutedForeground} /></Pressable>
+      </View>
+
+      <View style={{ padding: 12, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><View style={{ width: 12, height: 12, borderRadius: 2, borderWidth: 1, borderColor: STATE_COLORS['answered'].border, backgroundColor: STATE_COLORS['answered'].bg }} /><Text style={{ fontSize: 10, color: colors.mutedForeground }}>Ans: {stats.answered + stats.answeredMarked}</Text></View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><View style={{ width: 12, height: 12, borderRadius: 2, borderWidth: 1, borderColor: STATE_COLORS['not-answered'].border, backgroundColor: STATE_COLORS['not-answered'].bg }} /><Text style={{ fontSize: 10, color: colors.mutedForeground }}>Unans: {stats.notAnswered}</Text></View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><View style={{ width: 12, height: 12, borderRadius: 2, borderWidth: 1, borderColor: STATE_COLORS['marked-review'].border, backgroundColor: STATE_COLORS['marked-review'].bg }} /><Text style={{ fontSize: 10, color: colors.mutedForeground }}>Rev: {stats.markedReview + stats.answeredMarked}</Text></View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><View style={{ width: 12, height: 12, borderRadius: 2, borderWidth: 1, borderColor: STATE_COLORS['not-visited'].border, backgroundColor: STATE_COLORS['not-visited'].bg }} /><Text style={{ fontSize: 10, color: colors.mutedForeground }}>Not Vis: {stats.notVisited}</Text></View>
+      </View>
+
+      <View style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ padding: 12, gap: 8 }}>
+          {sections.map((sec: any, si: number) => {
+            const ss = sectionStats(sec);
+            const isActive = activeSection === si;
+            return (
+              <Pressable key={si} onPress={() => setActiveSection(si)} style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999, backgroundColor: isActive ? colors.primary : colors.muted }}>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: isActive ? '#fff' : colors.mutedForeground }}>{sec.emoji} {sec.name} <Text style={{ opacity: 0.7 }}>{ss.attempted}/{ss.total}</Text></Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </View>
+
+      <ScrollView contentContainerStyle={{ padding: 16, flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+        {Array.from({ length: Math.min(sections[activeSection].endIndex, totalQ - 1) - sections[activeSection].startIndex + 1 }, (_, i) => {
+          const qIdx = sections[activeSection].startIndex + i;
+          const m = meta[qIdx];
+          const isCurrent = qIdx === currentQ;
+          const { bg, border, text } = STATE_COLORS[m.state] || STATE_COLORS['not-visited'];
+
+          return (
+            <Pressable key={qIdx} onPress={() => onSelect(qIdx)} style={{ width: 44, height: 44, borderRadius: 10, borderWidth: isCurrent ? 2 : 1.5, borderColor: isCurrent ? colors.primary : border, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: text }}>{qIdx + 1}</Text>
+              {m.bookmarked && <Star size={10} color={colors.warning} fill={colors.warning} style={{ position: 'absolute', top: -4, right: -4 }} />}
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+};
 
 export default NTATestPlayer;

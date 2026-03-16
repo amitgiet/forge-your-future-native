@@ -1,191 +1,156 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import { View, Text, Pressable } from "react-native";
-import Svg, { Circle } from "react-native-svg";
-import { MotiView } from "moti";
-import { Shield, Pause, Play } from "lucide-react-native";
-import { useTheme } from "@/contexts/ThemeContext";
-import { useLanguage } from "@/contexts/LanguageContext";
-import { GlassCard } from "@/components/ui/GlassCard";
-import { StatIcon } from "@/components/ui/StatIcon";
+import React, { useState, useEffect } from 'react';
+import { View, Text, Pressable } from 'react-native';
+import { MotiView, MotiText } from 'moti';
+import { Shield, Pause, Play } from 'lucide-react-native';
+import Svg, { Circle, LinearGradient as SvgGradient, Defs, Stop } from 'react-native-svg';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface ShieldCardProps {
   initialMinutes?: number;
 }
 
-export const ShieldCard = ({ initialMinutes = 25 }: ShieldCardProps) => {
+const ShieldCard = ({ initialMinutes = 25 }: ShieldCardProps) => {
   const { colors } = useTheme();
-  const totalSeconds = initialMinutes * 60;
-  const [timeRemaining, setTimeRemaining] = useState(totalSeconds);
-  const [isRunning, setIsRunning] = useState(false);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [timeLeft, setTimeLeft] = useState(initialMinutes * 60);
+  const [isPaused, setIsPaused] = useState(false);
 
-  const clearTimer = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-  }, []);
+  const totalSeconds = initialMinutes * 60;
+  const progress = ((totalSeconds - timeLeft) / totalSeconds) * 100;
 
   useEffect(() => {
-    if (isRunning && timeRemaining > 0) {
-      intervalRef.current = setInterval(() => {
-        setTimeRemaining((prev) => {
-          if (prev <= 1) {
-            clearTimer();
-            setIsRunning(false);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    } else {
-      clearTimer();
-    }
+    if (isPaused || timeLeft <= 0) return;
+    const interval = setInterval(() => {
+      setTimeLeft((prev) => Math.max(0, prev - 1));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isPaused, timeLeft]);
 
-    return clearTimer;
-  }, [isRunning, clearTimer]);
-
-  const toggleTimer = () => {
-    if (timeRemaining === 0) {
-      setTimeRemaining(totalSeconds);
-      setIsRunning(true);
-    } else {
-      setIsRunning((prev) => !prev);
-    }
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const minutes = Math.floor(timeRemaining / 60);
-  const seconds = timeRemaining % 60;
-  const formatted = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  const handlePause = () => {
+    setIsPaused(true);
+    setTimeout(() => setIsPaused(false), 5 * 60 * 1000);
+  };
 
-  const progress = timeRemaining / totalSeconds; // 1 = full, 0 = done
-  const ringSize = 120;
-  const borderW = 6;
+  const handleResume = () => {
+    setIsPaused(false);
+  };
 
-  const { t } = useLanguage();
-  const title = t("dashboard.shield") || "Shield";
-  const ringRadius = 44;
-  const circumference = 2 * Math.PI * ringRadius;
-  const progressDash = circumference * (1 - progress);
+  // SVG circle — matches web exactly
+  const R = 28;
+  const circumference = 2 * Math.PI * R;
+  const strokeDashoffset = circumference * (1 - progress / 100);
 
   return (
     <MotiView
-      from={{ opacity: 0, translateY: 12 }}
+      from={{ opacity: 0, translateY: 20 }}
       animate={{ opacity: 1, translateY: 0 }}
-      transition={{ type: "timing", duration: 400 }}
+      transition={{ type: 'timing', duration: 400 }}
+      style={{
+        backgroundColor: colors.card,
+        borderRadius: 16,
+        padding: 20,
+        borderWidth: 1,
+        borderColor: colors.border,
+        overflow: 'hidden',
+      }}
     >
-      <GlassCard>
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-            <StatIcon color={colors.secondary}>
-              <Shield size={20} color={colors.secondary} />
-            </StatIcon>
-            <View>
-              <Text
-                style={{
-                  fontSize: 17,
-                  fontWeight: "700",
-                  color: colors.foreground,
-                  fontFamily: "Inter_700Bold",
-                }}
-              >
-                {title}
-              </Text>
-              <Text
-                style={{
-                  fontSize: 12,
-                  color: colors.mutedForeground,
-                  fontFamily: "Inter_500Medium",
-                  marginTop: 2,
-                }}
-              >
-                {initialMinutes}-minute focus timer
-              </Text>
+      {/* Decorative glow — matches web -top-8 -left-8 w-32 h-32 */}
+      <View
+        style={{
+          position: 'absolute',
+          top: -32,
+          left: -32,
+          width: 128,
+          height: 128,
+          borderRadius: 64,
+          backgroundColor: colors.primary + '33',
+        }}
+      />
+
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+          {/* Circular Progress SVG — matches web exactly */}
+          <View style={{ width: 64, height: 64, position: 'relative', alignItems: 'center', justifyContent: 'center' }}>
+            <Svg width={64} height={64} viewBox="0 0 64 64" style={{ transform: [{ rotate: '-90deg' }] }}>
+              <Defs>
+                <SvgGradient id="shieldGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <Stop offset="0%" stopColor="#6366F1" />
+                  <Stop offset="50%" stopColor="#8B5CF6" />
+                  <Stop offset="100%" stopColor="#EC4899" />
+                </SvgGradient>
+              </Defs>
+              {/* Track circle */}
+              <Circle
+                cx="32" cy="32" r={R}
+                fill="none"
+                stroke="rgba(255,255,255,0.06)"
+                strokeWidth={5}
+              />
+              {/* Progress arc */}
+              <Circle
+                cx="32" cy="32" r={R}
+                fill="none"
+                stroke="url(#shieldGradient)"
+                strokeWidth={5}
+                strokeLinecap="round"
+                strokeDasharray={circumference}
+                strokeDashoffset={strokeDashoffset}
+              />
+            </Svg>
+            {/* Shield icon overlay */}
+            <View style={{ position: 'absolute', alignItems: 'center', justifyContent: 'center' }}>
+              <Shield size={20} color={isPaused ? colors.mutedForeground : colors.primary} />
             </View>
           </View>
 
-          <Text
-            style={{
-              fontSize: 12,
-              fontWeight: "600",
-              color: colors.primary,
-              fontFamily: "Inter_600SemiBold",
-            }}
-          >
-            {formatted}
-          </Text>
-        </View>
-
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginTop: 20,
-          }}
-        >
-          <View style={{ alignItems: "center" }}>
-            <Svg width={ringRadius * 2 + 8} height={ringRadius * 2 + 8}>
-              <Circle
-                cx={ringRadius + 4}
-                cy={ringRadius + 4}
-                r={ringRadius}
-                stroke={colors.muted}
-                strokeWidth={8}
-                fill="none"
-              />
-              <Circle
-                cx={ringRadius + 4}
-                cy={ringRadius + 4}
-                r={ringRadius}
-                stroke={colors.primary}
-                strokeWidth={8}
-                fill="none"
-                strokeDasharray={`${circumference}`}
-                strokeDashoffset={progressDash}
-                strokeLinecap="round"
-                rotation="-90"
-                origin={`${ringRadius + 4}, ${ringRadius + 4}`}
-              />
-            </Svg>
-            <Text
-              style={{
-                marginTop: 6,
-                fontSize: 12,
-                color: colors.mutedForeground,
-                fontFamily: "Inter_500Medium",
-              }}
-            >
-              {Math.round(progress * 100)}% left
+          {/* Timer + Label */}
+          <View>
+            <Text style={{
+              fontSize: 11, fontWeight: '500', color: colors.mutedForeground,
+              fontFamily: 'Inter_500Medium', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4,
+            }}>
+              Focus Shield
             </Text>
-          </View>
-
-          <Pressable
-            onPress={toggleTimer}
-            style={({ pressed }) => ({
-              width: 56,
-              height: 56,
-              borderRadius: 28,
-              backgroundColor: colors.primary,
-              alignItems: "center",
-              justifyContent: "center",
-              opacity: pressed ? 0.85 : 1,
-            })}
-          >
-            {isRunning ? (
-              <Pause size={24} color="#fff" />
-            ) : (
-              <Play size={24} color="#fff" />
+            <MotiText
+              animate={timeLeft <= 60 && !isPaused ? { scale: [1, 1.05, 1] } : { scale: 1 }}
+              transition={{ loop: timeLeft <= 60, duration: 500 }}
+              style={{ fontSize: 30, fontWeight: '800', color: colors.primary, fontFamily: 'Inter_700Bold' }}
+            >
+              {formatTime(timeLeft)}
+            </MotiText>
+            {isPaused && (
+              <MotiView from={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ type: 'timing', duration: 200 }}>
+                <Text style={{ fontSize: 12, color: colors.mutedForeground, marginTop: 2, fontFamily: 'Inter_400Regular' }}>
+                  Paused for 5 min
+                </Text>
+              </MotiView>
             )}
-          </Pressable>
+          </View>
         </View>
-      </GlassCard>
+
+        {/* Pause/Resume button */}
+        <Pressable
+          onPress={isPaused ? handleResume : handlePause}
+          style={({ pressed }) => ({
+            width: 44, height: 44, borderRadius: 12,
+            borderWidth: 1,
+            borderColor: isPaused ? colors.success + '50' : colors.primary + '50',
+            alignItems: 'center', justifyContent: 'center',
+            backgroundColor: 'transparent',
+            opacity: pressed ? 0.7 : 1,
+          })}
+        >
+          {isPaused
+            ? <Play size={20} color={colors.success} />
+            : <Pause size={20} color={colors.primary} />
+          }
+        </Pressable>
+      </View>
     </MotiView>
   );
 };

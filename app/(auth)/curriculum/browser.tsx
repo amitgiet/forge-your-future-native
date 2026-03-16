@@ -1,96 +1,228 @@
-import React, { useEffect, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, ScrollView, Pressable, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowLeft, BookOpen, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react-native';
+import { ArrowLeft, BookOpen, ChevronRight, Atom, FlaskConical, Leaf, Trophy, CircleDashed, RotateCcw, Play, GraduationCap } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import apiService from '@/lib/apiService';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { Tabs } from '@/components/ui/Tabs';
 
-const SUBJECT_TABS = [
-  { key: 'biology', label: 'Biology' },
-  { key: 'chemistry', label: 'Chemistry' },
-  { key: 'physics', label: 'Physics' },
-];
+type SubjectKey = 'biology' | 'chemistry' | 'physics';
+type Panel = 'subjects' | 'chapters' | 'topics' | 'roadmap';
+
+const SUBJECT_META: Record<SubjectKey, { label: string; icon: any; tint: string }> = {
+  biology: { label: 'Biology', icon: Leaf, tint: '#22c55e' },
+  chemistry: { label: 'Chemistry', icon: FlaskConical, tint: '#f59e0b' },
+  physics: { label: 'Physics', icon: Atom, tint: '#3b82f6' },
+};
 
 export default function CurriculumBrowserScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
 
-  const [activeSubject, setActiveSubject] = useState('biology');
+  const [panel, setPanel] = useState<Panel>('subjects');
+  const [subject, setSubject] = useState<SubjectKey | null>(null);
   const [chapters, setChapters] = useState<any[]>([]);
-  const [expandedChapter, setExpandedChapter] = useState<string | null>(null);
-  const [topics, setTopics] = useState<Record<string, any[]>>({});
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const [topics, setTopics] = useState<any[]>([]);
+  const [topicFlows, setTopicFlows] = useState<any[]>([]);
+  const [selectedChapter, setSelectedChapter] = useState<any | null>(null);
+  const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
 
-  const fetchChapters = async () => {
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const subjectMeta = subject ? SUBJECT_META[subject] : null;
+
+  const loadChapters = async (sub: SubjectKey) => {
+    setError(null);
+    setLoading(true);
+    setChapters([]);
     try {
-      const res = await apiService.curriculum.getChapters(activeSubject);
-      if (res.data?.success) {
-        setChapters(res.data.data || []);
-      }
-    } catch {} finally {
+      const res = await apiService.curriculum.getChapters(sub);
+      const payload = res?.data;
+      const list = payload?.data || payload?.chapters || [];
+      setChapters(Array.isArray(list) ? list : []);
+      setPanel('chapters');
+    } catch (e: any) {
+      setError(e?.response?.data?.message || 'Failed to load chapters. Please retry.');
+    } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    setLoading(true);
-    setChapters([]);
-    setExpandedChapter(null);
-    fetchChapters();
-  }, [activeSubject]);
-
-  const handleExpandChapter = async (chapterId: string) => {
-    if (expandedChapter === chapterId) {
-      setExpandedChapter(null);
+  const loadTopics = async (sub: SubjectKey, chapter: any) => {
+    const chapterId = String(chapter?._id || chapter?.id || chapter?.chapterId || '');
+    if (!chapterId) {
+      setError('Invalid chapter selected.');
       return;
     }
-    setExpandedChapter(chapterId);
-    if (!topics[chapterId]) {
-      try {
-        const res = await apiService.curriculum.getTopics(activeSubject, chapterId);
-        if (res.data?.success) {
-          setTopics((prev) => ({ ...prev, [chapterId]: res.data.data || [] }));
-        }
-      } catch {}
+    setError(null);
+    setLoading(true);
+    setTopics([]);
+    setSelectedChapter(chapter);
+    try {
+      const res = await apiService.curriculum.getTopics(sub, chapterId);
+      const payload = res?.data;
+      const list = payload?.data || payload?.topics || [];
+      setTopics(Array.isArray(list) ? list : []);
+      setPanel('topics');
+    } catch (e: any) {
+      setError(e?.response?.data?.message || 'Failed to load topics. Please retry.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleTopicPress = (chapter: any, topic: any) => {
-    router.push({
-      pathname: '/(auth)/curriculum/quiz-instructions',
-      params: {
-        subject: activeSubject,
-        chapterId: chapter._id || chapter.id || chapter.chapterId,
-        topic: topic.name || topic.title || topic,
-      },
-    } as any);
+  const loadRoadmap = async (sub: SubjectKey, chapter: any, topicName: string) => {
+    const chapterId = String(chapter?._id || chapter?.id || chapter?.chapterId || '');
+    if (!chapterId || !topicName) return;
+    setError(null);
+    setLoading(true);
+    setTopicFlows([]);
+    try {
+      const res = await apiService.curriculum.getSubTopics(sub, chapterId, topicName);
+      const payload = res?.data;
+      const list = payload?.data || [];
+      setTopicFlows(Array.isArray(list) ? list : []);
+      setPanel('roadmap');
+    } catch (e: any) {
+      setError(e?.response?.data?.message || 'Failed to load curriculum flow. Please retry.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const selectSubject = async (sub: SubjectKey) => {
+    setSubject(sub);
+    setSelectedChapter(null);
+    setTopics([]);
+    await loadChapters(sub);
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchChapters();
+    if (panel === 'chapters' && subject) {
+      await loadChapters(subject);
+    } else if (panel === 'topics' && subject && selectedChapter) {
+      await loadTopics(subject, selectedChapter);
+    } else if (panel === 'roadmap' && subject && selectedChapter && selectedTopic) {
+      await loadRoadmap(subject, selectedChapter, selectedTopic);
+    }
     setRefreshing(false);
+  };
+
+  const goBack = () => {
+    if (panel === 'topics') {
+      setPanel('chapters');
+      setError(null);
+      return;
+    }
+    if (panel === 'roadmap') {
+      setPanel('topics');
+      setError(null);
+      return;
+    }
+    if (panel === 'chapters') {
+      setPanel('subjects');
+      setError(null);
+      return;
+    }
+    router.back();
+  };
+
+  const panelTitle = useMemo(() => {
+    if (panel === 'subjects') return 'Question Bank';
+    if (panel === 'chapters') return `${subjectMeta?.label || ''} Chapters`;
+    if (panel === 'topics') return String(selectedChapter?._id || selectedChapter?.name || selectedChapter?.chapterName || 'Topics');
+    return String(selectedTopic || 'Curriculum Roadmap');
+  }, [panel, subjectMeta, selectedChapter]);
+
+  const SubjectIcon = subjectMeta?.icon || BookOpen;
+
+  const startSubtopicTest = async (topicName: string, subTopic: any) => {
+    if (!subject || !selectedChapter) return;
+    const uids = Array.isArray(subTopic?.uids) ? subTopic.uids : [];
+    if (uids.length === 0) return;
+    const chapterId = String(selectedChapter?._id || selectedChapter?.id || selectedChapter?.chapterId || '');
+    if (!chapterId) return;
+
+    setLoading(true);
+    setError(null);
+    try {
+      const runRes = await apiService.curriculum.startRun({
+        subject,
+        chapterId,
+        topic: topicName,
+        subTopic: String(subTopic?.subTopic || subTopic?.name || 'Sub-topic'),
+        mode: 'test',
+        uids,
+      });
+      const runId =
+        runRes?.data?.data?._id ||
+        runRes?.data?.data?.runId ||
+        runRes?.data?.data?.id ||
+        runRes?.data?.data?.run?._id ||
+        runRes?.data?.data?.run?.runId ||
+        runRes?.data?.run?._id ||
+        runRes?.data?.run?.runId;
+      if (!runId) {
+        setError('Could not start test session.');
+        return;
+      }
+      router.push({
+        pathname: '/(auth)/practice/session/[challengeId]',
+        params: { challengeId: String(runId) },
+      } as any);
+    } catch (e: any) {
+      setError(e?.response?.data?.message || 'Could not start test. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={{ paddingTop: insets.top, paddingHorizontal: 16 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 12 }}>
-          <Pressable onPress={() => router.back()} style={{ padding: 8 }}>
-            <ArrowLeft size={24} color={colors.foreground} />
+          <Pressable
+            onPress={goBack}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 10,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 1,
+              borderColor: colors.border,
+              backgroundColor: colors.card,
+            }}
+          >
+            <ArrowLeft size={20} color={colors.foreground} />
           </Pressable>
           <Text style={{ flex: 1, fontSize: 18, fontWeight: '700', color: colors.foreground, fontFamily: 'PlusJakartaSans_700Bold' }}>
-            Question Bank
+            {panelTitle}
           </Text>
+          {subjectMeta ? (
+            <View
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 10,
+                backgroundColor: subjectMeta.tint + '22',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <SubjectIcon size={18} color={subjectMeta.tint} />
+            </View>
+          ) : (
+            <BookOpen size={20} color={colors.primary} />
+          )}
         </View>
-        <Tabs tabs={SUBJECT_TABS} activeKey={activeSubject} onTabChange={setActiveSubject} style={{ marginBottom: 12 }} />
       </View>
 
       <ScrollView
@@ -102,68 +234,196 @@ export default function CurriculumBrowserScreen() {
           <View style={{ gap: 12 }}>
             {[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} height={70} borderRadius={12} />)}
           </View>
-        ) : chapters.length === 0 ? (
-          <GlassCard style={{ alignItems: 'center', paddingVertical: 40, gap: 12 }}>
-            <BookOpen size={40} color={colors.mutedForeground} />
-            <Text style={{ fontSize: 16, fontWeight: '600', color: colors.foreground }}>No chapters found</Text>
+        ) : error ? (
+          <GlassCard style={{ alignItems: 'center', paddingVertical: 28, gap: 10 }}>
+            <Text style={{ fontSize: 14, color: colors.destructive, textAlign: 'center' }}>{error}</Text>
+            <Pressable
+              onPress={() => {
+                if (panel === 'chapters' && subject) void loadChapters(subject);
+                if (panel === 'topics' && subject && selectedChapter) void loadTopics(subject, selectedChapter);
+              }}
+              style={{
+                borderWidth: 1,
+                borderColor: colors.border,
+                borderRadius: 10,
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+                backgroundColor: colors.card,
+              }}
+            >
+              <Text style={{ color: colors.foreground, fontSize: 12, fontWeight: '700' }}>Retry</Text>
+            </Pressable>
           </GlassCard>
-        ) : (
-          <View style={{ gap: 10 }}>
-            {chapters.map((chapter: any, i: number) => {
-              const chId = chapter._id || chapter.id || chapter.chapterId || String(i);
-              const isExpanded = expandedChapter === chId;
-              const chapterTopics = topics[chId] || [];
+        ) : panel === 'subjects' ? (
+                <View style={{ gap: 10 }}>
+            {(Object.keys(SUBJECT_META) as SubjectKey[]).map((sub) => {
+              const meta = SUBJECT_META[sub];
+              const Icon = meta.icon;
               return (
-                <View key={chId}>
-                  <Pressable onPress={() => handleExpandChapter(chId)}>
-                    <GlassCard style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                      <View style={{ padding: 10, borderRadius: 10, backgroundColor: colors.success + '15' }}>
-                        <BookOpen size={18} color={colors.success} />
+                <Pressable key={sub} onPress={() => void selectSubject(sub)}>
+                  <GlassCard style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 16 }}>
+                    <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: meta.tint + '22', alignItems: 'center', justifyContent: 'center' }}>
+                      <Icon size={22} color={meta.tint} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 15, fontWeight: '700', color: colors.foreground }}>{meta.label}</Text>
+                      <Text style={{ fontSize: 12, color: colors.mutedForeground, marginTop: 2 }}>Browse chapters and track sub-topic mastery</Text>
+                    </View>
+                    <ChevronRight size={18} color={meta.tint} />
+                  </GlassCard>
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : panel === 'chapters' ? (
+          chapters.length === 0 ? (
+            <GlassCard style={{ alignItems: 'center', paddingVertical: 40, gap: 12 }}>
+              <BookOpen size={40} color={colors.mutedForeground} />
+              <Text style={{ fontSize: 16, fontWeight: '600', color: colors.foreground }}>No chapters found</Text>
+            </GlassCard>
+          ) : (
+            <View style={{ gap: 10 }}>
+              {chapters.map((chapter: any, i: number) => {
+                const chapterTitle = String(chapter?._id || chapter?.name || chapter?.title || chapter?.chapterName || `Chapter ${i + 1}`);
+                return (
+                  <Pressable key={`${chapterTitle}-${i}`} onPress={() => subject && void loadTopics(subject, chapter)}>
+                    <GlassCard style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 }}>
+                      <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: (subjectMeta?.tint || colors.primary) + '22', alignItems: 'center', justifyContent: 'center' }}>
+                        <Text style={{ color: subjectMeta?.tint || colors.primary, fontWeight: '800', fontSize: 13 }}>{i + 1}</Text>
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 14, fontWeight: '600', color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
-                          {chapter.name || chapter.title || chapter.chapterName}
-                        </Text>
-                        {chapter.topicCount && (
-                          <Text style={{ fontSize: 12, color: colors.mutedForeground, marginTop: 2 }}>
-                            {chapter.topicCount} topics
-                          </Text>
-                        )}
+                        <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground }}>{chapterTitle}</Text>
+                        <View style={{ marginTop: 4, flexDirection: 'row', gap: 6 }}>
+                          <Badge variant="outline">{chapter?.topicCount || 0} topics</Badge>
+                        </View>
                       </View>
-                      {isExpanded ? (
-                        <ChevronUp size={18} color={colors.mutedForeground} />
-                      ) : (
-                        <ChevronDown size={18} color={colors.mutedForeground} />
-                      )}
+                      <ChevronRight size={16} color={subjectMeta?.tint || colors.primary} />
                     </GlassCard>
                   </Pressable>
-
-                  {isExpanded && (
-                    <View style={{ marginLeft: 20, marginTop: 8, gap: 6 }}>
-                      {chapterTopics.length === 0 ? (
-                        <Text style={{ fontSize: 13, color: colors.mutedForeground, paddingVertical: 8, paddingLeft: 12 }}>
-                          Loading topics...
-                        </Text>
-                      ) : (
-                        chapterTopics.map((topic: any, ti: number) => (
-                          <Pressable key={ti} onPress={() => handleTopicPress(chapter, topic)}>
-                            <View style={{
-                              flexDirection: 'row', alignItems: 'center', gap: 8,
-                              paddingVertical: 10, paddingHorizontal: 12,
-                              backgroundColor: colors.card, borderRadius: 8,
-                              borderWidth: 1, borderColor: colors.border,
-                            }}>
-                              <Text style={{ flex: 1, fontSize: 13, color: colors.foreground }}>
-                                {typeof topic === 'string' ? topic : (topic.name || topic.title)}
-                              </Text>
-                              <ChevronRight size={16} color={colors.mutedForeground} />
-                            </View>
-                          </Pressable>
-                        ))
-                      )}
-                    </View>
-                  )}
+                );
+              })}
+            </View>
+          )
+        ) : panel === 'topics' && topics.length === 0 ? (
+          <GlassCard style={{ alignItems: 'center', paddingVertical: 40, gap: 12 }}>
+            <BookOpen size={40} color={colors.mutedForeground} />
+            <Text style={{ fontSize: 16, fontWeight: '600', color: colors.foreground }}>No topics found</Text>
+          </GlassCard>
+        ) : panel === 'topics' ? (
+          <View style={{ gap: 8 }}>
+            {topics.map((topic: any, i: number) => (
+              <Pressable
+                key={`topic-${i}`}
+                onPress={() => {
+                  const topicName = String(typeof topic === 'string' ? topic : (topic?.topic || topic?.name || topic?.title || ''));
+                  setSelectedTopic(topicName);
+                  if (subject && selectedChapter) void loadRoadmap(subject, selectedChapter, topicName);
+                }}
+              >
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 8,
+                    paddingVertical: 10,
+                    paddingHorizontal: 12,
+                    backgroundColor: colors.card,
+                    borderRadius: 10,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: 99,
+                      backgroundColor: subjectMeta?.tint || colors.primary,
+                      opacity: 0.8,
+                    }}
+                  />
+                  <Text style={{ flex: 1, fontSize: 13, color: colors.foreground }}>
+                    {String(typeof topic === 'string' ? topic : (topic?.topic || topic?.name || topic?.title || 'Untitled Topic'))}
+                  </Text>
+                  <ChevronRight size={16} color={subjectMeta?.tint || colors.primary} />
                 </View>
+              </Pressable>
+            ))}
+          </View>
+        ) : (
+          <View style={{ gap: 10 }}>
+            {topicFlows.map((flow: any, flowIndex: number) => {
+              const topicName = String(flow?.topic || selectedTopic || `Topic ${flowIndex + 1}`);
+              const subTopics = Array.isArray(flow?.sub_topics) ? flow.sub_topics.filter((s: any) => Number(s?.uid_count || 0) > 0) : [];
+              return (
+                <GlassCard key={`${topicName}-${flowIndex}`} style={{ paddingVertical: 14 }}>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: colors.foreground }}>{topicName}</Text>
+                  <Text style={{ fontSize: 12, color: colors.mutedForeground, marginTop: 2 }}>{subTopics.length} active sub-topics</Text>
+                  <View style={{ gap: 8, marginTop: 10 }}>
+                    {subTopics.map((sub: any, idx: number) => {
+                      const progress = sub?.progress || {};
+                      const completed = Boolean(progress?.completed);
+                      const hasTaken = Boolean(progress?.hasTaken);
+                      const showResume = hasTaken && !completed;
+                      const chipText = completed ? 'Completed' : showResume ? 'In Progress' : 'Not Started';
+                      const chipBg = completed ? colors.success + '16' : showResume ? colors.warning + '16' : colors.muted;
+                      const chipTextColor = completed ? colors.success : showResume ? colors.warning : colors.mutedForeground;
+                      const ButtonIcon = completed ? RotateCcw : showResume ? Play : GraduationCap;
+                      const btnLabel = completed ? 'Retake Test' : showResume ? 'Resume Test' : 'Start Test';
+                      return (
+                        <View
+                          key={`${sub?.subTopic || 'sub'}-${idx}`}
+                          style={{
+                            borderWidth: 1,
+                            borderColor: colors.border,
+                            borderRadius: 12,
+                            padding: 10,
+                            backgroundColor: colors.card,
+                            gap: 8,
+                          }}
+                        >
+                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                              {completed ? <Trophy size={15} color={colors.success} /> : <CircleDashed size={15} color={colors.mutedForeground} />}
+                              <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: '700', flex: 1 }}>
+                                {String(sub?.subTopic || 'Sub-topic')}
+                              </Text>
+                            </View>
+                            <View style={{ borderRadius: 999, backgroundColor: chipBg, paddingHorizontal: 8, paddingVertical: 3 }}>
+                              <Text style={{ color: chipTextColor, fontSize: 10, fontWeight: '700' }}>{chipText}</Text>
+                            </View>
+                          </View>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                            <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>{Number(sub?.uid_count || 0)} questions</Text>
+                            <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Best {Number(progress?.bestScore || 0)}%</Text>
+                            <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Attempts {Number(progress?.attempts || 0)}</Text>
+                          </View>
+                          <Pressable
+                            onPress={() => void startSubtopicTest(topicName, sub)}
+                            style={{
+                              alignSelf: 'flex-start',
+                              borderRadius: 10,
+                              backgroundColor: colors.success + '18',
+                              borderWidth: 1,
+                              borderColor: colors.success + '40',
+                              paddingHorizontal: 10,
+                              paddingVertical: 7,
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              gap: 6,
+                            }}
+                          >
+                            <ButtonIcon size={13} color={colors.success} />
+                            <Text style={{ color: colors.success, fontSize: 11, fontWeight: '700' }}>{btnLabel}</Text>
+                          </Pressable>
+                        </View>
+                      );
+                    })}
+                    {subTopics.length === 0 ? (
+                      <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>No active sub-topics with questions in this topic.</Text>
+                    ) : null}
+                  </View>
+                </GlassCard>
               );
             })}
           </View>

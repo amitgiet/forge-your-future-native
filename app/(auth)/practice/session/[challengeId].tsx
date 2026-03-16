@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowLeft, Clock, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import apiService from '@/lib/apiService';
+import NTATestPlayer, { type QuestionMeta, type NTASubmitData } from '@/components/NTATestPlayer';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Button } from '@/components/ui/Button';
 import { Progress } from '@/components/ui/Progress';
@@ -24,36 +25,70 @@ export default function PracticeSessionScreen() {
   const [answers, setAnswers] = useState<(number | null)[]>([]);
   const [showResult, setShowResult] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     const loadRun = async () => {
+      if (!challengeId) {
+        setLoadError('Missing run id.');
+        setLoading(false);
+        return;
+      }
       try {
-        const res = await apiService.curriculum.getRun(challengeId);
+        setLoadError(null);
+        const res = await apiService.curriculum.getRun(String(challengeId));
         if (res.data?.success) {
-          const data = res.data.data;
-          setRun(data);
-          setAnswers(new Array(data.questions?.length || 0).fill(null));
-          setCurrentIndex(data.currentIndex || 0);
-          setElapsed(data.elapsedSeconds || 0);
+          const payload = res.data.data || {};
+          const runData = payload.run || payload;
+          const questionsData = Array.isArray(payload.questions) ? payload.questions : [];
+          const initialAnswers = Array.isArray(runData.answers)
+            ? runData.answers.map((a: any) => (typeof a === 'number' && a >= 0 ? a : null))
+            : new Array(questionsData.length).fill(null);
+
+          setRun({ ...runData, questions: questionsData });
+          setAnswers(initialAnswers.length > 0 ? initialAnswers : new Array(questionsData.length).fill(null));
+          setCurrentIndex(Number(runData.currentIndex || 0));
+          setElapsed(Number(runData.elapsedSeconds || 0));
+        } else {
+          setLoadError('Unable to load test run.');
         }
-      } catch {} finally {
+      } catch (err: any) {
+        setLoadError(err?.response?.data?.message || 'Unable to load test run.');
+      } finally {
         setLoading(false);
       }
     };
     loadRun();
   }, []);
 
-  useEffect(() => {
-    timerRef.current = setInterval(() => setElapsed((e) => e + 1), 1000);
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, []);
-
   const questions = run?.questions || [];
   const currentQ = questions[currentIndex];
   const isPracticeMode = run?.mode === 'practice';
+  const isTestMode = run?.mode === 'test';
+
+  useEffect(() => {
+    if (!isPracticeMode) return;
+    timerRef.current = setInterval(() => setElapsed((e) => e + 1), 1000);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [isPracticeMode]);
+
+  const getOptions = (q: any): string[] => {
+    const raw = q?.options;
+    if (Array.isArray(raw)) return raw.map((o) => (typeof o === 'string' ? o : String(o?.text || o?.value || o || '')));
+    if (raw && typeof raw === 'object') return ['A', 'B', 'C', 'D'].map((k) => String(raw[k] || ''));
+    return [];
+  };
+
+  const getCorrectIndex = (q: any): number => {
+    if (typeof q?.correctOption === 'number') return q.correctOption;
+    if (typeof q?.answer === 'number') return q.answer;
+    const key = String(q?.correct_option || q?.correctAnswer || '').trim().toUpperCase();
+    if (['A', 'B', 'C', 'D'].includes(key)) return key.charCodeAt(0) - 65;
+    return -1;
+  };
 
   const handleSelectAnswer = (optionIndex: number) => {
     if (showResult && isPracticeMode) return;
@@ -126,11 +161,67 @@ export default function PracticeSessionScreen() {
     ]);
   };
 
+  const buildInitialMeta = (): QuestionMeta[] => {
+    const runAnswers: (number | null)[] = Array.isArray(run?.answers)
+      ? run.answers.map((a: any) => (typeof a === 'number' && a >= 0 ? a : null))
+      : [];
+    return (questions || []).map((_: any, idx: number) => {
+      const selected = runAnswers[idx] ?? null;
+      return {
+        state: selected === null ? 'not-answered' : 'answered',
+        selectedOption: selected,
+        bookmarked: false,
+        note: '',
+        timeSpent: 0,
+      } as QuestionMeta;
+    });
+  };
+
+  const handleNtaAnswerChange = async (questionIndex: number, answer: number | null, meta: QuestionMeta) => {
+    if (!challengeId) return;
+    const updated = Array.isArray(answers) ? [...answers] : new Array(questions.length).fill(null);
+    updated[questionIndex] = answer;
+    setAnswers(updated);
+    try {
+      await apiService.curriculum.saveRunProgress(String(challengeId), {
+        currentIndex: questionIndex,
+        answers: updated,
+        elapsedSeconds: elapsed,
+      });
+    } catch {}
+  };
+
+  const handleNtaSubmit = async (data: NTASubmitData) => {
+    if (!challengeId) return;
+    setSubmitting(true);
+    try {
+      const res = await apiService.curriculum.submitRun(String(challengeId), {
+        answers: data.answers,
+        elapsedSeconds: data.timeTaken,
+      });
+      if (res.data?.success) {
+        const summary = res.data?.data?.summary || {};
+        router.replace({
+          pathname: '/(auth)/quiz/results',
+          params: {
+            score: String(summary.score ?? 0),
+            total: String(summary.total ?? questions.length),
+            timeTaken: String(data.timeTaken),
+          },
+        } as any);
+      }
+    } catch (err: any) {
+      Alert.alert('Error', err?.response?.data?.message || 'Failed to submit');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const getOptionState = (optionIndex: number) => {
     if (!showResult || !isPracticeMode) {
       return answers[currentIndex] === optionIndex ? 'selected' : 'default';
     }
-    const correctIndex = currentQ?.correctOption ?? currentQ?.answer;
+    const correctIndex = getCorrectIndex(currentQ);
     if (optionIndex === correctIndex) return 'correct';
     if (answers[currentIndex] === optionIndex) return 'incorrect';
     return 'default';
@@ -146,6 +237,51 @@ export default function PracticeSessionScreen() {
           <Skeleton height={200} borderRadius={12} />
           {[1, 2, 3, 4].map((i) => <Skeleton key={i} height={60} borderRadius={12} />)}
         </View>
+      </View>
+    );
+  }
+
+  if (loadError || !run) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: insets.top, paddingHorizontal: 16 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 12 }}>
+          <Pressable onPress={() => router.back()} style={{ padding: 8 }}>
+            <ArrowLeft size={24} color={colors.foreground} />
+          </Pressable>
+          <Text style={{ flex: 1, fontSize: 18, fontWeight: '700', color: colors.foreground }}>Test Session</Text>
+        </View>
+        <GlassCard style={{ marginTop: 16, alignItems: 'center', gap: 10 }}>
+          <Text style={{ color: colors.destructive, fontSize: 14, textAlign: 'center' }}>
+            {loadError || 'Unable to load test run.'}
+          </Text>
+          <Button variant="outline" onPress={() => router.back()}>
+            Back
+          </Button>
+        </GlassCard>
+      </View>
+    );
+  }
+
+  if (isTestMode) {
+    const ntaQuestions = (questions || []).map((q: any) => ({
+      id: String(q?._id || q?.questionId || q?.id || ''),
+      question: q?.question || q?.text || '',
+      options: Array.isArray(q?.options) ? q.options : (q?.options || {}),
+      correctAnswer: getCorrectIndex(q),
+      explanation: q?.explanation || '',
+    }));
+    const duration = Number(run?.remainingSeconds || run?.totalQuestions * 90 || 5400);
+
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <NTATestPlayer
+          questions={ntaQuestions}
+          title={String(run?.subTopic || run?.topic || 'Curriculum Test')}
+          duration={duration > 0 ? duration : 5400}
+          initialMeta={buildInitialMeta()}
+          onAnswerChange={handleNtaAnswerChange}
+          onSubmit={handleNtaSubmit}
+        />
       </View>
     );
   }
@@ -183,7 +319,7 @@ export default function PracticeSessionScreen() {
             </GlassCard>
 
             <View style={{ gap: 10 }}>
-              {(currentQ.options || []).map((opt: any, i: number) => (
+              {getOptions(currentQ).map((opt: any, i: number) => (
                 <QuizOption
                   key={i}
                   label={OPTION_LABELS[i]}

@@ -31,6 +31,7 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AUTH_BOOTSTRAP_TIMEOUT_MS = 12000;
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -81,7 +82,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      const response = await apiService.auth.getProfile();
+      const response: any = await Promise.race([
+        apiService.auth.getProfile(),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Auth bootstrap timeout')), AUTH_BOOTSTRAP_TIMEOUT_MS)
+        ),
+      ]);
       if (response.data.success) {
         const profile = response.data.data;
         setUser(profile);

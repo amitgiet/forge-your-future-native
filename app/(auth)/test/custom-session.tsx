@@ -1,221 +1,141 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, ScrollView, Pressable, Alert } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowLeft, Clock, Flag, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { AlertCircle } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import apiService from '@/lib/apiService';
-import { GlassCard } from '@/components/ui/GlassCard';
-import { Button } from '@/components/ui/Button';
-import { Progress } from '@/components/ui/Progress';
-import { QuizOption } from '@/components/ui/QuizOption';
-import { Badge } from '@/components/ui/Badge';
-import { Skeleton } from '@/components/ui/Skeleton';
+import NTATestPlayer, { NTAQuestion, NTASubmitData, QuestionMeta } from '@/components/NTATestPlayer';
 
-const OPTION_LABELS = ['A', 'B', 'C', 'D'];
+function optionToIndex(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string') {
+    const clean = value.trim().toUpperCase();
+    if (/^[A-D]$/.test(clean)) return clean.charCodeAt(0) - 65;
+    const num = Number(clean);
+    if (Number.isFinite(num)) return num;
+  }
+  return null;
+}
 
 export default function CustomTestSessionScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-  const params = useLocalSearchParams<{ attemptId: string }>();
+  const { attemptId } = useLocalSearchParams<{ attemptId: string }>();
 
-  const [attempt, setAttempt] = useState<any>(null);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState<(string | null)[]>([]);
-  const [markedForReview, setMarkedForReview] = useState<Set<number>>(new Set());
-  const [timeLeft, setTimeLeft] = useState(0);
+  const [test, setTest] = useState<any>(null);
+  const [questions, setQuestions] = useState<NTAQuestion[]>([]);
+  const [initialMeta, setInitialMeta] = useState<QuestionMeta[] | undefined>();
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     const loadAttempt = async () => {
       try {
-        const res = await apiService.tests.getAttempt(params.attemptId);
-        if (res.data?.success) {
-          const data = res.data.data;
-          setAttempt(data);
-          setAnswers(new Array(data.questions?.length || 0).fill(null));
-          setTimeLeft((data.duration || 30) * 60);
-        }
-      } catch {} finally {
+        const res = await apiService.tests.getAttempt(attemptId);
+        const attemptData = res.data?.data;
+        const testData = attemptData?.testId || attemptData?.test || {};
+        const rawQuestions: NTAQuestion[] = Array.isArray(testData?.questions)
+          ? testData.questions
+          : Array.isArray(attemptData?.questions)
+            ? attemptData.questions
+            : [];
+
+        setTest(testData);
+        setQuestions(rawQuestions);
+
+        const metaArray: QuestionMeta[] = rawQuestions.map(() => ({
+          state: 'not-visited',
+          selectedOption: null,
+          bookmarked: false,
+          note: '',
+          timeSpent: 0,
+        }));
+
+        const savedAnswers = Array.isArray(attemptData?.answers) ? attemptData.answers : [];
+        savedAnswers.forEach((ans: any) => {
+          const answerQuestionId = ans?.questionId?._id || ans?.questionId;
+          const index = rawQuestions.findIndex((q: any) => String(q._id || q.id) === String(answerQuestionId));
+          if (index === -1) return;
+          const selectedIndex = optionToIndex(ans?.selectedOption);
+          if (selectedIndex === null || selectedIndex < 0) return;
+
+          metaArray[index] = {
+            ...metaArray[index],
+            selectedOption: selectedIndex,
+            state: ans?.isMarkedForReview ? 'answered-marked' : 'answered',
+            timeSpent: Number(ans?.timeSpent || 0),
+          };
+        });
+
+        setInitialMeta(metaArray);
+      } catch (e) {
+        console.error('Failed to load custom attempt', e);
+        setError('Failed to load custom test attempt.');
+      } finally {
         setLoading(false);
       }
     };
+
     loadAttempt();
-  }, []);
+  }, [attemptId]);
 
-  useEffect(() => {
-    if (timeLeft <= 0 || loading) return;
-    timerRef.current = setInterval(() => {
-      setTimeLeft((t) => {
-        if (t <= 1) {
-          if (timerRef.current) clearInterval(timerRef.current);
-          handleSubmit();
-          return 0;
-        }
-        return t - 1;
-      });
-    }, 1000);
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [loading]);
-
-  const questions = attempt?.questions || [];
-  const currentQ = questions[currentIndex];
-
-  const handleSelectAnswer = async (option: string) => {
-    const updated = [...answers];
-    updated[currentIndex] = option;
-    setAnswers(updated);
-
+  const handleSubmit = async (data: NTASubmitData) => {
     try {
-      await apiService.tests.saveAnswer(params.attemptId, {
-        questionId: currentQ._id,
-        selectedOption: option,
-        timeSpent: 0,
-        isMarkedForReview: markedForReview.has(currentIndex),
-      });
-    } catch {}
-  };
-
-  const toggleMarkForReview = () => {
-    setMarkedForReview((prev) => {
-      const next = new Set(prev);
-      if (next.has(currentIndex)) next.delete(currentIndex);
-      else next.add(currentIndex);
-      return next;
-    });
-  };
-
-  const handleSubmit = async () => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    setSubmitting(true);
-    try {
-      await apiService.tests.submitTest(params.attemptId);
+      await apiService.tests.submitTest(attemptId);
       router.replace({
         pathname: '/(auth)/test/report/[attemptId]',
-        params: { attemptId: params.attemptId },
+        params: { attemptId: String(attemptId) },
       } as any);
-    } catch (err: any) {
-      Alert.alert('Error', err?.response?.data?.message || 'Failed to submit test');
-    } finally {
-      setSubmitting(false);
+    } catch (e) {
+      console.error('Failed to submit custom attempt', e);
+      setError('Failed to submit test.');
     }
   };
 
-  const formatTime = (s: number) => {
-    const m = Math.floor(s / 60);
-    const sec = s % 60;
-    return `${m}:${sec.toString().padStart(2, '0')}`;
+  const handleAnswerChange = async (questionIndex: number, answer: number | null, meta: QuestionMeta) => {
+    try {
+      const question = questions[questionIndex] as any;
+      if (!question?._id) return;
+
+      await apiService.tests.saveAnswer(String(attemptId), {
+        questionId: question._id,
+        selectedOption: answer !== null ? String.fromCharCode(65 + answer) : '',
+        timeSpent: meta.timeSpent,
+        isMarkedForReview: meta.state === 'marked-review' || meta.state === 'answered-marked',
+      });
+    } catch (e) {
+      console.error('Failed to save custom answer', e);
+    }
   };
 
   if (loading) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: insets.top }}>
-        <View style={{ padding: 16, gap: 12 }}>
-          <Skeleton height={40} borderRadius={8} />
-          <Skeleton height={200} borderRadius={12} />
-          <Skeleton height={60} borderRadius={12} />
-          <Skeleton height={60} borderRadius={12} />
-        </View>
+      <View style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }}>
+        <Text style={{ color: colors.mutedForeground }}>Loading test...</Text>
       </View>
     );
   }
 
+  if (error || questions.length === 0) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <AlertCircle size={56} color={colors.destructive} />
+        <Text style={{ marginTop: 12, color: colors.foreground, fontWeight: '700', fontSize: 18 }}>Error loading test</Text>
+        <Text style={{ marginTop: 6, color: colors.mutedForeground, textAlign: 'center' }}>{error || 'No questions available.'}</Text>
+      </View>
+    );
+  }
+
+  const durationSeconds = (Number(test?.config?.duration || test?.duration || 180) || 180) * 60;
+
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <View style={{ paddingTop: insets.top, paddingHorizontal: 16 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 12 }}>
-          <Pressable onPress={() => {
-            Alert.alert('Quit Test?', 'Your progress will be submitted.', [
-              { text: 'Cancel' },
-              { text: 'Submit & Exit', style: 'destructive', onPress: handleSubmit },
-            ]);
-          }} style={{ padding: 8 }}>
-            <ArrowLeft size={24} color={colors.foreground} />
-          </Pressable>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 14, fontWeight: '600', color: colors.foreground }}>
-              Q {currentIndex + 1}/{questions.length}
-            </Text>
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Clock size={14} color={timeLeft < 300 ? colors.destructive : colors.warning} />
-            <Text style={{ fontSize: 14, fontWeight: '700', color: timeLeft < 300 ? colors.destructive : colors.warning }}>
-              {formatTime(timeLeft)}
-            </Text>
-          </View>
-        </View>
-        <Progress value={questions.length > 0 ? ((currentIndex + 1) / questions.length) * 100 : 0} style={{ marginBottom: 8 }} />
-      </View>
-
-      <ScrollView
-        contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 100 }}
-        showsVerticalScrollIndicator={false}
-      >
-        {currentQ && (
-          <>
-            <GlassCard style={{ marginBottom: 16 }}>
-              <Text style={{ fontSize: 16, fontWeight: '500', color: colors.foreground, lineHeight: 24, fontFamily: 'Inter_500Medium' }}>
-                {currentQ.question || currentQ.text}
-              </Text>
-            </GlassCard>
-            <View style={{ gap: 10 }}>
-              {(currentQ.options || []).map((opt: any, i: number) => (
-                <QuizOption
-                  key={i}
-                  label={OPTION_LABELS[i]}
-                  text={typeof opt === 'string' ? opt : (opt.text || opt.value || String(opt))}
-                  state={answers[currentIndex] === (opt.key || OPTION_LABELS[i]) ? 'selected' : 'default'}
-                  onPress={() => handleSelectAnswer(opt.key || OPTION_LABELS[i])}
-                />
-              ))}
-            </View>
-            <Pressable onPress={toggleMarkForReview} style={{ marginTop: 12, alignSelf: 'flex-start' }}>
-              <Badge variant={markedForReview.has(currentIndex) ? 'warning' : 'outline'}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <Flag size={12} color={markedForReview.has(currentIndex) ? colors.warning : colors.mutedForeground} />
-                  <Text style={{ fontSize: 12, color: markedForReview.has(currentIndex) ? colors.warning : colors.mutedForeground, fontWeight: '600' }}>
-                    {markedForReview.has(currentIndex) ? 'Marked' : 'Mark for Review'}
-                  </Text>
-                </View>
-              </Badge>
-            </Pressable>
-          </>
-        )}
-      </ScrollView>
-
-      <View
-        style={{
-          position: 'absolute', bottom: 0, left: 0, right: 0,
-          paddingHorizontal: 16, paddingBottom: insets.bottom + 16, paddingTop: 12,
-          backgroundColor: colors.background, borderTopWidth: 1, borderTopColor: colors.border,
-          flexDirection: 'row', gap: 12,
-        }}
-      >
-        <Pressable onPress={() => setCurrentIndex(Math.max(0, currentIndex - 1))} disabled={currentIndex === 0}
-          style={{ padding: 14, borderRadius: 12, borderWidth: 1, borderColor: colors.border, opacity: currentIndex === 0 ? 0.4 : 1 }}>
-          <ChevronLeft size={20} color={colors.foreground} />
-        </Pressable>
-        <View style={{ flex: 1 }}>
-          {currentIndex === questions.length - 1 ? (
-            <Button onPress={() => {
-              Alert.alert('Submit Test?', `You answered ${answers.filter(Boolean).length}/${questions.length} questions.`, [
-                { text: 'Review', style: 'cancel' },
-                { text: 'Submit', onPress: handleSubmit },
-              ]);
-            }} loading={submitting}>Submit Test</Button>
-          ) : (
-            <Button onPress={() => setCurrentIndex(currentIndex + 1)}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>Next</Text>
-                <ChevronRight size={18} color="#fff" />
-              </View>
-            </Button>
-          )}
-        </View>
-      </View>
-    </View>
+    <NTATestPlayer
+      questions={questions}
+      title={test?.title || 'Custom Test'}
+      duration={durationSeconds}
+      onSubmit={handleSubmit}
+      onAnswerChange={handleAnswerChange}
+      initialMeta={initialMeta}
+    />
   );
 }
