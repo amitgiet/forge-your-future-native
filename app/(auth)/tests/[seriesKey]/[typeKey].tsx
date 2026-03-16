@@ -130,19 +130,19 @@ export default function TestListScreen() {
           <View style={{ gap: 12 }}>
             {filtered.map((item: any, i: number) => {
               const testId = String(item._id || item.id || '');
-              const title = item.title?.en || item.title?.hi || item.testId;
-              const desc = item.description?.en || item.description?.hi || '';
+              const title = item.title?.en || item.title?.hi || item.title || item.testId;
+              const desc = typeof item.description === 'string' ? item.description : (item.description?.en || item.description?.hi || '');
               const completed = Boolean(item.progress?.completed);
               const hasPdfs = item.resources?.questionPdf || item.resources?.answerPdf;
 
               return (
                 <MotiView key={testId} from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ delay: i * 0.025 }}
-                  style={{ borderRadius: 16, borderWidth: 1, borderColor: completed ? colors.success + '4D' : colors.border, backgroundColor: colors.card, overflow: 'hidden' }}
+                  style={{ borderRadius: 22, borderWidth: 1, borderColor: completed ? colors.success + '4D' : colors.border, backgroundColor: colors.card, overflow: 'hidden' }}
                 >
                   <View style={{ padding: 16, paddingBottom: 12 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
-                      <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: completed ? colors.success + '1A' : colors.primary + '1A', alignItems: 'center', justifyContent: 'center' }}>
-                        {completed ? <CheckCircle2 size={20} color={colors.success} /> : <FileText size={20} color={colors.primary} />}
+                      <View style={{ width: 42, height: 42, borderRadius: 22, backgroundColor: completed ? colors.success + '1A' : colors.primary + '1A', alignItems: 'center', justifyContent: 'center' }}>
+                        {completed ? <CheckCircle2 size={22} color={colors.success} /> : <FileText size={22} color={colors.primary} />}
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground, lineHeight: 20 }}>{title}</Text>
@@ -178,13 +178,13 @@ export default function TestListScreen() {
                     {hasPdfs && (
                       <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
                         <Pressable onPress={() => openPdf(item.resources?.questionPdf, `${title} - Questions`)} disabled={!item.resources?.questionPdf}
-                          style={{ flex: 1, height: 32, borderRadius: 8, backgroundColor: colors.primary + '1A', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, opacity: item.resources?.questionPdf ? 1 : 0.4 }}
+                          style={{ flex: 1, height: 35, borderRadius: 22, backgroundColor: colors.primary + '1A', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, opacity: item.resources?.questionPdf ? 1 : 0.4 }}
                         >
                           <FileText size={12} color={colors.primary} />
                           <Text style={{ fontSize: 12, fontWeight: '600', color: colors.primary }}>Questions</Text>
                         </Pressable>
                         <Pressable onPress={() => openPdf(item.resources?.answerPdf, `${title} - Solutions`)} disabled={!item.resources?.answerPdf}
-                          style={{ flex: 1, height: 32, borderRadius: 8, backgroundColor: colors.success + '1A', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, opacity: item.resources?.answerPdf ? 1 : 0.4 }}
+                          style={{ flex: 1, height: 35, borderRadius: 22, backgroundColor: colors.success + '1A', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, opacity: item.resources?.answerPdf ? 1 : 0.4 }}
                         >
                           <CheckCircle2 size={12} color={colors.success} />
                           <Text style={{ fontSize: 12, fontWeight: '600', color: colors.success }}>Solutions</Text>
@@ -195,12 +195,12 @@ export default function TestListScreen() {
                     {(item.resources?.hindiQuestionPdf || item.resources?.hindiAnswerPdf) && (
                       <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
                         <Pressable onPress={() => openPdf(item.resources?.hindiQuestionPdf, `${title} - Hindi Qs`)} disabled={!item.resources?.hindiQuestionPdf}
-                          style={{ flex: 1, height: 28, borderRadius: 8, backgroundColor: colors.muted, alignItems: 'center', justifyContent: 'center', opacity: item.resources?.hindiQuestionPdf ? 1 : 0.4 }}
+                          style={{ flex: 1, height: 35, borderRadius: 22, backgroundColor: colors.muted, alignItems: 'center', justifyContent: 'center', opacity: item.resources?.hindiQuestionPdf ? 1 : 0.4 }}
                         >
                           <Text style={{ fontSize: 12, fontWeight: '500', color: colors.mutedForeground }}>Hindi Qs</Text>
                         </Pressable>
                         <Pressable onPress={() => openPdf(item.resources?.hindiAnswerPdf, `${title} - Hindi Ans`)} disabled={!item.resources?.hindiAnswerPdf}
-                          style={{ flex: 1, height: 28, borderRadius: 8, backgroundColor: colors.muted, alignItems: 'center', justifyContent: 'center', opacity: item.resources?.hindiAnswerPdf ? 1 : 0.4 }}
+                          style={{ flex: 1, height: 35, borderRadius: 22, backgroundColor: colors.muted, alignItems: 'center', justifyContent: 'center', opacity: item.resources?.hindiAnswerPdf ? 1 : 0.4 }}
                         >
                           <Text style={{ fontSize: 12, fontWeight: '500', color: colors.mutedForeground }}>Hindi Ans</Text>
                         </Pressable>
@@ -210,11 +210,11 @@ export default function TestListScreen() {
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                       <Pressable onPress={() => toggleCompleted(item)} style={({ pressed }) => ({ flex: 1, opacity: pressed ? 0.9 : 1 })}>
                         {completed ? (
-                          <View style={{ height: 36, borderRadius: 12, backgroundColor: colors.muted, alignItems: 'center', justifyContent: 'center' }}>
+                          <View style={{ height: 40, borderRadius: 22, backgroundColor: colors.muted, alignItems: 'center', justifyContent: 'center' }}>
                             <Text style={{ fontSize: 12, fontWeight: '600', color: colors.mutedForeground }}>Undo Completion</Text>
                           </View>
                         ) : (
-                          <LinearGradient colors={[...gradients.primary]} start={gradientProps.start} end={gradientProps.end} style={{ height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' }}>
+                          <LinearGradient colors={[...gradients.primary]} start={gradientProps.start} end={gradientProps.end} style={{ height: 40, borderRadius: 22, alignItems: 'center', justifyContent: 'center' }}>
                             <Text style={{ fontSize: 12, fontWeight: '600', color: '#fff' }}>Mark Complete</Text>
                           </LinearGradient>
                         )}

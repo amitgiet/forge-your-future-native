@@ -118,7 +118,7 @@ export const DailyChallengeCard = () => {
               <Target size={16} color={colors.primary} />
             </View>
             <View>
-              <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold' }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold' }}>
                 Daily DPP
               </Text>
               <Text style={{ fontSize: 12, color: colors.mutedForeground, fontFamily: 'Inter_400Regular' }}>

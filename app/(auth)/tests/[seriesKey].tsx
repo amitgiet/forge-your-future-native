@@ -89,7 +89,7 @@ export default function TestSeriesTypeSelectorScreen() {
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={{ paddingTop: insets.top + 12, paddingBottom: 12, backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border, zIndex: 20 }}>
         <View style={{ paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <Pressable onPress={() => router.back()} style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: colors.muted, alignItems: 'center', justifyContent: 'center' }}>
+          <Pressable onPress={() => router.back()} style={{ width: 38, height: 38, borderRadius: 22, backgroundColor: colors.muted, alignItems: 'center', justifyContent: 'center' }}>
             <ArrowLeft size={20} color={colors.foreground} />
           </Pressable>
           <View style={{ flex: 1 }}>
@@ -104,11 +104,11 @@ export default function TestSeriesTypeSelectorScreen() {
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 20 }} showsVerticalScrollIndicator={false}>
         {loading ? (
           <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 80, gap: 12 }}>
-             <View style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: colors.primary + '1A', alignItems: 'center', justifyContent: 'center' }}>
-               <ActivityIndicator size="small" color={colors.primary} />
-             </View>
-             <Text style={{ fontSize: 14, color: colors.mutedForeground }}>Loading types...</Text>
-           </View>
+            <View style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: colors.primary + '1A', alignItems: 'center', justifyContent: 'center' }}>
+              <ActivityIndicator size="small" color={colors.primary} />
+            </View>
+            <Text style={{ fontSize: 14, color: colors.mutedForeground }}>Loading types...</Text>
+          </View>
         ) : typeRows.length === 0 ? (
           <View style={{ borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, padding: 32, alignItems: 'center' }}>
             <Layers size={40} color={colors.mutedForeground} style={{ opacity: 0.4, marginBottom: 8 }} />
@@ -119,12 +119,12 @@ export default function TestSeriesTypeSelectorScreen() {
             {typeRows.map((row, idx) => (
               <MotiView key={row.key} from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }} transition={{ delay: idx * 0.04 }}>
                 <Pressable onPress={() => router.push({ pathname: '/(auth)/tests/[seriesKey]/[typeKey]', params: { seriesKey: String(seriesKey), typeKey: row.key } } as any)} style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}>
-                  <View style={{ width: '100%', borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                    <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: colors.secondary + '1A', alignItems: 'center', justifyContent: 'center' }}>
+                  <View style={{ width: '100%', borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, padding: 18, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.secondary + '1A', alignItems: 'center', justifyContent: 'center' }}>
                       {typeIcon(row.key, colors.secondary)}
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground }}>{row.label}</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold', letterSpacing: 0.3 }}>{row.label}</Text>
                       <Text style={{ fontSize: 12, color: colors.mutedForeground, marginTop: 2 }}>{row.count} tests available</Text>
                     </View>
                     <ChevronRight size={20} color={colors.mutedForeground} />

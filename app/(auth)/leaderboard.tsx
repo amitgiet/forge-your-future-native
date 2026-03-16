@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/contexts/ThemeContext';
 import apiService from '@/lib/apiService';
 import { gradients, gradientProps } from '@/theme/gradients';
+import BottomNav from '@/components/BottomNav';
 
 interface LeaderboardEntry {
   rank: number;
@@ -89,11 +90,12 @@ const Leaderboard = () => {
   }
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={{ padding: 16, paddingTop: insets.top + 8, paddingBottom: 32 }}
-      showsVerticalScrollIndicator={false}
-    >
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 16, paddingTop: insets.top + 8, paddingBottom: 100 }}
+        showsVerticalScrollIndicator={false}
+      >
       {/* Header — same as web */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 24 }}>
         <Pressable
@@ -354,7 +356,9 @@ const Leaderboard = () => {
           </Pressable>
         </MotiView>
       )}
-    </ScrollView>
+      </ScrollView>
+      <BottomNav />
+    </View>
   );
 };
 

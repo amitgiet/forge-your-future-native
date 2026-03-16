@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Progress } from '@/components/ui/Progress';
+import BottomNav from '@/components/BottomNav';
 
 export default function MyChallengesScreen() {
   const router = useRouter();
@@ -67,7 +68,7 @@ export default function MyChallengesScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 20 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 100 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
         showsVerticalScrollIndicator={false}
       >
@@ -136,6 +137,7 @@ export default function MyChallengesScreen() {
           </View>
         )}
       </ScrollView>
+      <BottomNav />
     </View>
   );
 }

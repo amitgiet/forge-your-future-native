@@ -112,8 +112,8 @@ export default function SocialScreen() {
 
   const currentList =
     activeTab === 'friends' ? friends :
-    activeTab === 'requests' ? requests :
-    activeTab === 'chats' ? chats : leaderboard;
+      activeTab === 'requests' ? requests :
+        activeTab === 'chats' ? chats : leaderboard;
 
   const isEmpty = !loading && currentList.length === 0;
 
@@ -147,7 +147,7 @@ export default function SocialScreen() {
                 start={gradientProps.start}
                 end={gradientProps.end}
                 style={{
-                  height: 36, paddingHorizontal: 12, borderRadius: 12,
+                  height: 36, paddingHorizontal: 12, borderRadius: 22,
                   flexDirection: 'row', alignItems: 'center', gap: 6,
                 }}
               >
@@ -161,7 +161,7 @@ export default function SocialScreen() {
           <View style={{
             flexDirection: 'row', gap: 4,
             backgroundColor: colors.muted,
-            borderRadius: 12, padding: 4,
+            borderRadius: 22, padding: 6,
             marginBottom: 12,
           }}>
             {tabs.map(({ key, label, Icon }) => {
@@ -172,7 +172,7 @@ export default function SocialScreen() {
                   onPress={() => setActiveTab(key)}
                   style={{
                     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-                    gap: 4, paddingVertical: 8, borderRadius: 10,
+                    gap: 4, paddingVertical: 8, borderRadius: 22,
                     backgroundColor: isActive ? colors.card : 'transparent',
                   }}
                 >
@@ -211,7 +211,7 @@ export default function SocialScreen() {
         {loading ? (
           <View style={{ alignItems: 'center', paddingVertical: 64, gap: 12 }}>
             <View style={{
-              width: 48, height: 48, borderRadius: 16,
+              width: 48, height: 48, borderRadius: 22,
               backgroundColor: colors.primary + '18',
               alignItems: 'center', justifyContent: 'center',
             }}>
@@ -228,7 +228,7 @@ export default function SocialScreen() {
             style={{ alignItems: 'center', paddingVertical: 64 }}
           >
             <View style={{
-              width: 64, height: 64, borderRadius: 16,
+              width: 64, height: 64, borderRadius: 20,
               backgroundColor: colors.muted,
               alignItems: 'center', justifyContent: 'center',
               marginBottom: 12,
@@ -250,7 +250,7 @@ export default function SocialScreen() {
                   colors={[...gradients.primary]}
                   start={gradientProps.start}
                   end={gradientProps.end}
-                  style={{ height: 36, paddingHorizontal: 20, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                  style={{ height: 36, paddingHorizontal: 20, borderRadius: 20, flexDirection: 'row', alignItems: 'center', gap: 6 }}
                 >
                   <UserPlus size={14} color="#fff" />
                   <Text style={{ fontSize: 12, fontWeight: '600', color: '#fff', fontFamily: 'Inter_600SemiBold' }}>Find Friends</Text>
@@ -270,7 +270,7 @@ export default function SocialScreen() {
                 style={{
                   flexDirection: 'row', alignItems: 'center', gap: 12,
                   backgroundColor: colors.card,
-                  borderRadius: 12, borderWidth: 1, borderColor: colors.border,
+                  borderRadius: 20, borderWidth: 1, borderColor: colors.border,
                   padding: 12,
                 }}
               >
@@ -292,7 +292,7 @@ export default function SocialScreen() {
                 <Pressable
                   onPress={() => handleStartChat(friend._id)}
                   style={({ pressed }) => ({
-                    height: 32, paddingHorizontal: 12, borderRadius: 10,
+                    height: 32, paddingHorizontal: 12, borderRadius: 22,
                     backgroundColor: colors.primary + '18',
                     flexDirection: 'row', alignItems: 'center', gap: 4,
                     opacity: pressed ? 0.7 : 1,
@@ -313,7 +313,7 @@ export default function SocialScreen() {
                 transition={{ type: 'timing', duration: 200, delay: idx * 30 }}
                 style={{
                   backgroundColor: colors.card,
-                  borderRadius: 12, borderWidth: 2, borderColor: colors.primary + '30',
+                  borderRadius: 20, borderWidth: 2, borderColor: colors.primary + '30',
                   padding: 12,
                 }}
               >
@@ -343,7 +343,7 @@ export default function SocialScreen() {
                       colors={['#22c55e', '#16a34a']}
                       start={gradientProps.start}
                       end={gradientProps.end}
-                      style={{ height: 36, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                      style={{ height: 36, borderRadius: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                     >
                       {acceptingId === request.userId?._id
                         ? <ActivityIndicator size="small" color="#fff" />
@@ -355,7 +355,7 @@ export default function SocialScreen() {
                   {/* Decline */}
                   <Pressable
                     style={({ pressed }) => ({
-                      flex: 1, height: 36, borderRadius: 12,
+                      flex: 1, height: 36, borderRadius: 20,
                       borderWidth: 1, borderColor: colors.border,
                       backgroundColor: colors.muted,
                       flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
@@ -386,7 +386,7 @@ export default function SocialScreen() {
                     style={({ pressed }) => ({
                       flexDirection: 'row', alignItems: 'center', gap: 12,
                       backgroundColor: colors.card,
-                      borderRadius: 12, borderWidth: 1, borderColor: colors.border,
+                      borderRadius: 20, borderWidth: 1, borderColor: colors.border,
                       padding: 12,
                       opacity: pressed ? 0.85 : 1,
                     })}
@@ -428,7 +428,7 @@ export default function SocialScreen() {
                 style={{
                   flexDirection: 'row', alignItems: 'center', gap: 12,
                   backgroundColor: u.isCurrentUser ? colors.primary + '0D' : colors.card,
-                  borderRadius: 12,
+                  borderRadius: 20,
                   borderWidth: u.isCurrentUser ? 1 : 1,
                   borderColor: u.isCurrentUser ? colors.primary + '60' : colors.border,
                   padding: 12,
@@ -436,21 +436,21 @@ export default function SocialScreen() {
               >
                 {/* Rank icon */}
                 <View style={{
-                  width: 36, height: 36, borderRadius: 12,
+                  width: 36, height: 36, borderRadius: 20,
                   backgroundColor:
                     u.rank === 1 ? colors.warning + '25' :
-                    u.rank === 2 ? colors.muted :
-                    u.rank === 3 ? colors.warning + '18' :
-                    colors.muted + '80',
+                      u.rank === 2 ? colors.muted :
+                        u.rank === 3 ? colors.warning + '18' :
+                          colors.muted + '80',
                   alignItems: 'center', justifyContent: 'center',
                 }}>
                   {rankIcon(u.rank)}
                 </View>
 
                 {u.avatar ? (
-                  <Image source={{ uri: u.avatar }} style={{ width: 40, height: 40, borderRadius: 12 }} />
+                  <Image source={{ uri: u.avatar }} style={{ width: 40, height: 40, borderRadius: 20 }} />
                 ) : (
-                  <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: colors.primary + '18', alignItems: 'center', justifyContent: 'center' }}>
+                  <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primary + '18', alignItems: 'center', justifyContent: 'center' }}>
                     <Users size={16} color={colors.primary} />
                   </View>
                 )}

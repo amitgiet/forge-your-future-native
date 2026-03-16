@@ -1,58 +1,97 @@
-import React, { useMemo, useState, useRef, useEffect } from 'react';
-import { View, Text, ScrollView, Pressable, RefreshControl, Modal, Dimensions } from 'react-native';
+import React, { useMemo, useState, useRef } from 'react';
+import { View, Text, ScrollView, Pressable, RefreshControl, Modal, Dimensions, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowLeft, BookOpen, ChevronRight, Atom, FlaskConical, Leaf, Trophy, CircleDashed, RotateCcw, Play, GraduationCap, Star, X, Info, FileText, FileAudio, LayoutDashboard } from 'lucide-react-native';
+import {
+  ArrowLeft, BookOpen, ChevronRight, Atom, FlaskConical, Leaf,
+  Trophy, CircleDashed, RotateCcw, Play, GraduationCap, Star,
+  X, Info, FileText, Headphones, ImageIcon, Map, BarChart3,
+  ThumbsUp, ThumbsDown, CheckCircle2
+} from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import apiService from '@/lib/apiService';
-import { GlassCard } from '@/components/ui/GlassCard';
-import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { Video, ResizeMode } from 'expo-av';
-import { Audio } from 'expo-av';
+import { LinearGradient } from 'expo-linear-gradient';
+import { MotiView, AnimatePresence } from 'moti';
 
 type SubjectKey = 'biology' | 'chemistry' | 'physics';
 type Panel = 'subjects' | 'chapters' | 'topics' | 'roadmap';
-type ResourceKey = 'video' | 'slidesdeck' | 'shortnotes' | 'mindmap' | 'audio';
+type ResourceKey = 'video' | 'audio' | 'slides' | 'mindmap' | 'infographic' | 'report' | 'flashcards';
+
+type TopicLite = {
+  topic: string;
+  sub_topics: { subTopic: string }[];
+};
+
+type SubTopic = {
+  subTopic: string;
+  uid_count: number;
+  uids: number[];
+  progress?: {
+    completed: boolean;
+    hasTaken: boolean;
+    attempts: number;
+    bestScore: number;
+    lastScore: number;
+    lastAttemptAt: string | null;
+  };
+  activeRun?: {
+    runId: string;
+    mode: 'practice' | 'test';
+    attemptedQuestions: number;
+    totalQuestions: number;
+  } | null;
+};
+
+type TopicWithSubs = {
+  topic: string;
+  sub_topics: SubTopic[];
+};
 
 type ToppersVideo = { title?: string | null; url?: string | null; time?: string | null };
 type ToppersSlidesdeck = { title?: string | null; url?: string | null };
 type ToppersEssentials = {
   video?: ToppersVideo | null;
-  audio?: ToppersVideo | null;
+  audio?: string | null;
   slidesdeck?: ToppersSlidesdeck | null;
   mindmap?: any;
-  shortnotes?: any;
+  infographic?: string | null;
+  report?: string | null;
+  flashcards?: string | null;
 };
 
+interface ResourceReactions {
+  [resourceType: string]: { likes: number; dislikes: number; userReaction: 'like' | 'dislike' | 'none' };
+}
+
 const TOPPER_RESOURCES: { key: ResourceKey; label: string; icon: any }[] = [
-  { key: 'video', label: 'Toppers Video', icon: Play },
-  { key: 'audio', label: 'Toppers Audio', icon: FileAudio },
-  { key: 'mindmap', label: 'Mind Map', icon: LayoutDashboard },
-  { key: 'shortnotes', label: 'Short Notes', icon: FileText },
-  { key: 'slidesdeck', label: 'Slides Deck', icon: BookOpen },
+  { key: 'video', label: 'Video', icon: Play },
+  { key: 'report', label: 'Quick Revision', icon: BarChart3 },
+  { key: 'slides', label: 'Slides', icon: FileText },
+  { key: 'audio', label: 'Podcast', icon: Headphones },
+  { key: 'infographic', label: 'Infographic', icon: ImageIcon },
+  { key: 'mindmap', label: 'Mind Map', icon: Map },
+  { key: 'flashcards', label: 'Flashcards', icon: BookOpen },
 ];
 
 const hasResource = (te: ToppersEssentials, key: ResourceKey): boolean => {
   if (key === 'video') return !!te?.video?.url;
-  if (key === 'audio') return !!te?.audio?.url;
-  if (key === 'slidesdeck') return !!te?.slidesdeck?.url;
+  if (key === 'audio') return !!te?.audio;
+  if (key === 'slides') return !!te?.slidesdeck?.url;
   if (key === 'mindmap') return !!te?.mindmap;
-  if (key === 'shortnotes') return !!te?.shortnotes;
+  if (key === 'infographic') return !!te?.infographic;
+  if (key === 'report') return !!te?.report;
+  if (key === 'flashcards') return !!te?.flashcards;
   return false;
 };
 
 const hasAnyEssential = (te: ToppersEssentials): boolean =>
   TOPPER_RESOURCES.some((r) => hasResource(te, r.key));
 
-interface ResourceReactions {
-  [resourceType: string]: { likes: number; dislikes: number; userReaction: 'like' | 'dislike' | 'none' };
-}
-
-const SUBJECT_META: Record<SubjectKey, { label: string; icon: any; tint: string }> = {
-  biology: { label: 'Biology', icon: Leaf, tint: '#22c55e' },
-  chemistry: { label: 'Chemistry', icon: FlaskConical, tint: '#f59e0b' },
-  physics: { label: 'Physics', icon: Atom, tint: '#3b82f6' },
+const SUBJECT_META: Record<SubjectKey, { label: string; icon: any; tint: string; grad: [string, string] }> = {
+  biology: { label: 'Biology', icon: Leaf, tint: '#22c55e', grad: ['rgba(34, 197, 94, 0.2)', 'rgba(34, 197, 94, 0.05)'] },
+  chemistry: { label: 'Chemistry', icon: FlaskConical, tint: '#f59e0b', grad: ['rgba(245, 158, 11, 0.2)', 'rgba(245, 158, 11, 0.05)'] },
+  physics: { label: 'Physics', icon: Atom, tint: '#3b82f6', grad: ['rgba(59, 130, 246, 0.2)', 'rgba(59, 130, 246, 0.05)'] },
 };
 
 export default function CurriculumBrowserScreen() {
@@ -69,6 +108,7 @@ export default function CurriculumBrowserScreen() {
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
+  const [startingQuiz, setStartingQuiz] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -149,43 +189,6 @@ export default function CurriculumBrowserScreen() {
     }
   };
 
-  const handleToggleReaction = async (resourceType: ResourceKey, reactionType: 'like' | 'dislike') => {
-    if (!selectedChapter) return;
-    const chapterId = String(selectedChapter._id || selectedChapter.id || '');
-
-    setChapterReactions(prev => {
-      const current = prev[resourceType] || { likes: 0, dislikes: 0, userReaction: 'none' };
-      const next = { ...current };
-
-      if (current.userReaction === reactionType) {
-        next.userReaction = 'none';
-        if (reactionType === 'like') next.likes = Math.max(0, next.likes - 1);
-        if (reactionType === 'dislike') next.dislikes = Math.max(0, next.dislikes - 1);
-      } else {
-        if (current.userReaction === 'like') next.likes = Math.max(0, next.likes - 1);
-        if (current.userReaction === 'dislike') next.dislikes = Math.max(0, next.dislikes - 1);
-
-        next.userReaction = reactionType;
-        if (reactionType === 'like') next.likes += 1;
-        if (reactionType === 'dislike') next.dislikes += 1;
-      }
-
-      return { ...prev, [resourceType]: next };
-    });
-
-    try {
-      const currentReaction = chapterReactions[resourceType]?.userReaction;
-      const finalReaction = currentReaction === reactionType ? 'none' : reactionType;
-      await apiService.curriculum.toggleResourceReaction({
-        chapterId,
-        resourceType,
-        reaction: finalReaction
-      });
-    } catch (err) {
-      console.error('Failed to toggle reaction', err);
-    }
-  };
-
   const loadRoadmap = async (sub: SubjectKey, chapter: any, topicName: string) => {
     const chapterId = String(chapter?._id || chapter?.id || chapter?.chapterId || '');
     if (!chapterId || !topicName) return;
@@ -208,8 +211,23 @@ export default function CurriculumBrowserScreen() {
   const selectSubject = async (sub: SubjectKey) => {
     setSubject(sub);
     setSelectedChapter(null);
+    setSelectedTopic(null);
     setTopics([]);
+    setTopicFlows([]);
     await loadChapters(sub);
+  };
+
+  const selectChapter = async (chapter: any) => {
+    setSelectedChapter(chapter);
+    setSelectedTopic(null);
+    setTopicFlows([]);
+    await loadTopics(subject!, chapter);
+  };
+
+  const selectTopic = async (topic: any) => {
+    const topicName = String(topic?.topic || topic?.name || topic || '');
+    setSelectedTopic(topicName);
+    if (subject && selectedChapter) await loadRoadmap(subject, selectedChapter, topicName);
   };
 
   const onRefresh = async () => {
@@ -243,23 +261,66 @@ export default function CurriculumBrowserScreen() {
     router.back();
   };
 
-  const panelTitle = useMemo(() => {
-    if (panel === 'subjects') return 'Question Bank';
-    if (panel === 'chapters') return `${subjectMeta?.label || ''} Chapters`;
-    if (panel === 'topics') return String(selectedChapter?._id || selectedChapter?.name || selectedChapter?.chapterName || 'Topics');
-    return String(selectedTopic || 'Curriculum Roadmap');
-  }, [panel, subjectMeta, selectedChapter]);
+  const chapterStats = useMemo(() => {
+    const validSubTopics = topicFlows.flatMap((topic) =>
+      Array.isArray(topic.sub_topics) ? topic.sub_topics.filter((sub: any) => sub.uid_count > 0) : []
+    );
 
-  const SubjectIcon = subjectMeta?.icon || BookOpen;
+    const total = validSubTopics.length;
+    const completed = validSubTopics.filter((sub: any) => sub.progress?.completed).length;
+    const bestScoreSum = validSubTopics.reduce(
+      (sum, sub: any) => sum + Number(sub.progress?.bestScore || 0),
+      0
+    );
+    const averageBest = total > 0 ? Math.round(bestScoreSum / total) : 0;
 
-  const startSubtopicTest = async (topicName: string, subTopic: any) => {
+    return {
+      total,
+      completed,
+      completionPercent: total > 0 ? Math.round((completed / total) * 100) : 0,
+      averageBest,
+    };
+  }, [topicFlows]);
+
+  const getStatus = (sub: any) => {
+    const progress = sub?.progress;
+    if (progress?.completed) {
+      return {
+        label: 'Completed',
+        chip: { bg: colors.success + '26', text: colors.success, border: colors.success + '4D' },
+        node: { bg: colors.success + '33', border: colors.success + '66' },
+      };
+    }
+    if (progress?.hasTaken || sub?.activeRun) {
+      return {
+        label: 'In Progress',
+        chip: { bg: colors.warning + '26', text: colors.warning, border: colors.warning + '4D' },
+        node: { bg: colors.warning + '26', border: colors.warning + '66' },
+      };
+    }
+    return {
+      label: 'Not Started',
+      chip: { bg: colors.muted, text: colors.mutedForeground, border: colors.border },
+      node: { bg: colors.card, border: colors.border },
+    };
+  };
+
+  const breadcrumb = [
+    subject ? SUBJECT_META[subject].label : null,
+    selectedChapter ? (selectedChapter._id || selectedChapter.name) : null,
+    selectedTopic,
+  ].filter(Boolean) as string[];
+
+  const startQuiz = async (topicName: string, subTopic: any, mode: 'practice' | 'test') => {
     if (!subject || !selectedChapter) return;
     const uids = Array.isArray(subTopic?.uids) ? subTopic.uids : [];
-    if (uids.length === 0) return;
+    if (uids.length === 0) {
+      setError('No questions found for this sub-topic.');
+      return;
+    }
     const chapterId = String(selectedChapter?._id || selectedChapter?.id || selectedChapter?.chapterId || '');
-    if (!chapterId) return;
 
-    setLoading(true);
+    setStartingQuiz(subTopic.subTopic || subTopic.name);
     setError(null);
     try {
       const runRes = await apiService.curriculum.startRun({
@@ -267,29 +328,40 @@ export default function CurriculumBrowserScreen() {
         chapterId,
         topic: topicName,
         subTopic: String(subTopic?.subTopic || subTopic?.name || 'Sub-topic'),
-        mode: 'test',
+        mode,
         uids,
       });
-      const runId =
-        runRes?.data?.data?._id ||
-        runRes?.data?.data?.runId ||
-        runRes?.data?.data?.id ||
-        runRes?.data?.data?.run?._id ||
-        runRes?.data?.data?.run?.runId ||
-        runRes?.data?.run?._id ||
-        runRes?.data?.run?.runId;
+
+      const rawQuestions = runRes.data?.data?.questions || [];
+      const runData = runRes.data?.data?.run || runRes.data?.run || runRes.data?.data || null;
+      const runId = runData?._id || runData?.runId;
+
       if (!runId) {
-        setError('Could not start test session.');
+        Alert.alert('Error', 'Could not start test session. Run ID missing.');
         return;
       }
+
+      // Explicitly pushing to instructions screen for web parity
       router.push({
-        pathname: '/(auth)/practice/session/[challengeId]',
-        params: { challengeId: String(runId) },
+        pathname: '/(auth)/curriculum/quiz-instructions',
+        params: {
+          runId: String(runId),
+          questions: JSON.stringify(rawQuestions),
+          title: `${subTopic.subTopic || subTopic.name} – ${mode === 'test' ? 'Test' : 'Practice'}`,
+          duration: String(Math.max(Math.ceil(rawQuestions.length * 1.5), 10)),
+          subject,
+          chapterId,
+          topic: topicName,
+          mode,
+          subTopic: subTopic.subTopic || subTopic.name
+        }
       } as any);
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Could not start test. Please try again.');
+      const msg = e?.response?.data?.message || 'Could not start test. Please try again.';
+      setError(msg);
+      Alert.alert('Error', msg);
     } finally {
-      setLoading(false);
+      setStartingQuiz(null);
     }
   };
 
@@ -300,406 +372,350 @@ export default function CurriculumBrowserScreen() {
           <Pressable
             onPress={goBack}
             style={{
-              width: 36,
-              height: 36,
-              borderRadius: 10,
+              width: 40,
+              height: 40,
+              borderRadius: 12,
               alignItems: 'center',
               justifyContent: 'center',
-              borderWidth: 1,
+              borderWidth: 2,
               borderColor: colors.border,
               backgroundColor: colors.card,
             }}
           >
             <ArrowLeft size={20} color={colors.foreground} />
           </Pressable>
-          <Text style={{ flex: 1, fontSize: 18, fontWeight: '700', color: colors.foreground, fontFamily: 'PlusJakartaSans_700Bold' }}>
-            {panelTitle}
-          </Text>
-          {subjectMeta ? (
-            <View
-              style={{
-                width: 34,
-                height: 34,
-                borderRadius: 10,
-                backgroundColor: subjectMeta.tint + '22',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <SubjectIcon size={18} color={subjectMeta.tint} />
-            </View>
-          ) : (
-            <BookOpen size={20} color={colors.primary} />
-          )}
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 20, fontWeight: '700', color: colors.foreground, fontFamily: 'PlusJakartaSans_700Bold' }} numberOfLines={1}>
+              {panel === 'subjects' ? 'Question Bank' : (panel === 'chapters' ? `${subjectMeta?.label} Chapters` : (panel === 'topics' ? (selectedChapter?._id || selectedChapter?.name) : (selectedTopic || 'Roadmap')))}
+            </Text>
+            {breadcrumb.length > 0 && (
+              <Text style={{ fontSize: 12, color: colors.mutedForeground }} numberOfLines={1}>
+                {breadcrumb.join(' > ')}
+              </Text>
+            )}
+          </View>
+          <View style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}>
+            {panel === 'roadmap' ? (
+              <BookOpen size={24} color={colors.primary} />
+            ) : subjectMeta ? (
+              <subjectMeta.icon size={24} color={subjectMeta.tint} />
+            ) : (
+              <BookOpen size={24} color={colors.primary} />
+            )}
+          </View>
         </View>
       </View>
 
       <ScrollView
-        contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 20 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
-        showsVerticalScrollIndicator={false}
-      >
-        {loading ? (
-          <View style={{ gap: 12 }}>
-            {[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} height={70} borderRadius={12} />)}
-          </View>
-        ) : error ? (
-          <GlassCard style={{ alignItems: 'center', paddingVertical: 28, gap: 10 }}>
-            <Text style={{ fontSize: 14, color: colors.destructive, textAlign: 'center' }}>{error}</Text>
-            <Pressable
-              onPress={() => {
-                if (panel === 'chapters' && subject) void loadChapters(subject);
-                if (panel === 'topics' && subject && selectedChapter) void loadTopics(subject, selectedChapter);
-              }}
-              style={{
-                borderWidth: 1,
-                borderColor: colors.border,
-                borderRadius: 10,
-                paddingHorizontal: 12,
-                paddingVertical: 8,
-                backgroundColor: colors.card,
-              }}
-            >
-              <Text style={{ color: colors.foreground, fontSize: 12, fontWeight: '700' }}>Retry</Text>
-            </Pressable>
-          </GlassCard>
-        ) : panel === 'subjects' ? (
-          <View style={{ gap: 10 }}>
-            {(Object.keys(SUBJECT_META) as SubjectKey[]).map((sub) => {
-              const meta = SUBJECT_META[sub];
-              const Icon = meta.icon;
-              return (
-                <Pressable key={sub} onPress={() => void selectSubject(sub)}>
-                  <GlassCard style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 16 }}>
-                    <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: meta.tint + '22', alignItems: 'center', justifyContent: 'center' }}>
-                      <Icon size={22} color={meta.tint} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 15, fontWeight: '700', color: colors.foreground }}>{meta.label}</Text>
-                      <Text style={{ fontSize: 12, color: colors.mutedForeground, marginTop: 2 }}>Browse chapters and track sub-topic mastery</Text>
-                    </View>
-                    <ChevronRight size={18} color={meta.tint} />
-                  </GlassCard>
-                </Pressable>
-              );
-            })}
-          </View>
-        ) : panel === 'chapters' ? (
-          chapters.length === 0 ? (
-            <GlassCard style={{ alignItems: 'center', paddingVertical: 40, gap: 12 }}>
-              <BookOpen size={40} color={colors.mutedForeground} />
-              <Text style={{ fontSize: 16, fontWeight: '600', color: colors.foreground }}>No chapters found</Text>
-            </GlassCard>
-          ) : (
-            <View style={{ gap: 10 }}>
-              {chapters.map((chapter: any, i: number) => {
-                const chapterTitle = String(chapter?._id || chapter?.name || chapter?.title || chapter?.chapterName || `Chapter ${i + 1}`);
-                return (
-                  <Pressable key={`${chapterTitle}-${i}`} onPress={() => subject && void loadTopics(subject, chapter)}>
-                    <GlassCard style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 }}>
-                      <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: (subjectMeta?.tint || colors.primary) + '22', alignItems: 'center', justifyContent: 'center' }}>
-                        <Text style={{ color: subjectMeta?.tint || colors.primary, fontWeight: '800', fontSize: 13 }}>{i + 1}</Text>
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground }}>{chapterTitle}</Text>
-                        <View style={{ marginTop: 4, flexDirection: 'row', gap: 6 }}>
-                          <Badge variant="outline">{chapter?.topicCount || 0} topics</Badge>
-                        </View>
-                      </View>
-                      <ChevronRight size={16} color={subjectMeta?.tint || colors.primary} />
-                    </GlassCard>
-                  </Pressable>
-                );
-              })}
-            </View>
-          )
-        ) : panel === 'topics' && topics.length === 0 && (!toppersEssentials || !hasAnyEssential(toppersEssentials)) ? (
-          <GlassCard style={{ alignItems: 'center', paddingVertical: 40, gap: 12 }}>
-            <BookOpen size={40} color={colors.mutedForeground} />
-            <Text style={{ fontSize: 16, fontWeight: '600', color: colors.foreground }}>No topics found</Text>
-          </GlassCard>
-        ) : panel === 'topics' ? (
-          <View style={{ gap: 8 }}>
-            {toppersEssentials && hasAnyEssential(toppersEssentials) && (
-              <Pressable onPress={() => setToppersOpen(true)}>
-                <View
-                  style={{
-                    borderRadius: 16,
-                    borderWidth: 1,
-                    borderColor: '#f59e0b40',
-                    backgroundColor: '#f59e0b15',
-                    padding: 16,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginBottom: 8,
-                  }}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                    <View style={{ padding: 6, borderRadius: 8, backgroundColor: '#f59e0b33' }}>
-                      <Star size={16} color="#fbbf24" fill="#fbbf24" />
-                    </View>
-                    <View>
-                      <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground }}>Toppers Corner</Text>
-                      <Text style={{ fontSize: 10, color: colors.mutedForeground, marginTop: 2 }}>{TOPPER_RESOURCES.filter(r => hasResource(toppersEssentials!, r.key)).length} resources curated</Text>
-                    </View>
-                  </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <Text style={{ fontSize: 11, fontWeight: '600', color: '#fbbf24' }}>View All</Text>
-                    <ChevronRight size={14} color="#fbbf24" />
-                  </View>
-                </View>
-              </Pressable>
-            )}
-
-            {topics.map((topic: any, i: number) => (
-              <Pressable
-                key={`topic-${i}`}
-                onPress={() => {
-                  const topicName = String(typeof topic === 'string' ? topic : (topic?.topic || topic?.name || topic?.title || ''));
-                  setSelectedTopic(topicName);
-                  if (subject && selectedChapter) void loadRoadmap(subject, selectedChapter, topicName);
-                }}
+            contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 20 }}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+            showsVerticalScrollIndicator={false}
+          >
+            <AnimatePresence >
+              <MotiView
+                key={panel}
+                from={{ opacity: 0, translateX: 16 }}
+                animate={{ opacity: 1, translateX: 0 }}
+                exit={{ opacity: 0, translateX: -16 }}
+                transition={{ type: 'timing', duration: 200 }}
               >
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 8,
-                    paddingVertical: 10,
-                    paddingHorizontal: 12,
-                    backgroundColor: colors.card,
-                    borderRadius: 10,
-                    borderWidth: 1,
-                    borderColor: colors.border,
-                  }}
-                >
-                  <View
-                    style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: 99,
-                      backgroundColor: subjectMeta?.tint || colors.primary,
-                      opacity: 0.8,
-                    }}
-                  />
-                  <Text style={{ flex: 1, fontSize: 13, color: colors.foreground }}>
-                    {String(typeof topic === 'string' ? topic : (topic?.topic || topic?.name || topic?.title || 'Untitled Topic'))}
-                  </Text>
-                  <ChevronRight size={16} color={subjectMeta?.tint || colors.primary} />
-                </View>
-              </Pressable>
-            ))}
-          </View>
-        ) : (
-          <View style={{ gap: 10 }}>
-            {topicFlows.map((flow: any, flowIndex: number) => {
-              const topicName = String(flow?.topic || selectedTopic || `Topic ${flowIndex + 1}`);
-              const subTopics = Array.isArray(flow?.sub_topics) ? flow.sub_topics.filter((s: any) => Number(s?.uid_count || 0) > 0) : [];
-              return (
-                <GlassCard key={`${topicName}-${flowIndex}`} style={{ paddingVertical: 14 }}>
-                  <Text style={{ fontSize: 15, fontWeight: '700', color: colors.foreground }}>{topicName}</Text>
-                  <Text style={{ fontSize: 12, color: colors.mutedForeground, marginTop: 2 }}>{subTopics.length} active sub-topics</Text>
-                  <View style={{ gap: 8, marginTop: 10 }}>
-                    {subTopics.map((sub: any, idx: number) => {
-                      const progress = sub?.progress || {};
-                      const completed = Boolean(progress?.completed);
-                      const hasTaken = Boolean(progress?.hasTaken);
-                      const showResume = hasTaken && !completed;
-                      const chipText = completed ? 'Completed' : showResume ? 'In Progress' : 'Not Started';
-                      const chipBg = completed ? colors.success + '16' : showResume ? colors.warning + '16' : colors.muted;
-                      const chipTextColor = completed ? colors.success : showResume ? colors.warning : colors.mutedForeground;
-                      const ButtonIcon = completed ? RotateCcw : showResume ? Play : GraduationCap;
-                      const btnLabel = completed ? 'Retake Test' : showResume ? 'Resume Test' : 'Start Test';
+                {loading ? (
+                  <View style={{ gap: 12 }}>
+                    {[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} height={70} borderRadius={16} />)}
+                  </View>
+                ) : panel === 'subjects' ? (
+                  <View style={{ gap: 16 }}>
+                    {(Object.keys(SUBJECT_META) as SubjectKey[]).map((sub) => {
+                      const meta = SUBJECT_META[sub];
+                      const Icon = meta.icon;
                       return (
-                        <View
-                          key={`${sub?.subTopic || 'sub'}-${idx}`}
+                        <Pressable key={sub} onPress={() => void selectSubject(sub)}>
+                          <MotiView
+                            from={{ scale: 1 }}
+                            animate={{ scale: 1 }}
+                          >
+                            <LinearGradient
+                              colors={meta.grad}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 1, y: 1 }}
+                              style={{
+                                borderRadius: 22,
+                                borderWidth: 1,
+                                borderColor: colors.border,
+                                padding: 20,
+                              }}
+                            >
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+                                <View style={{ borderRadius: 12, backgroundColor: colors.background + 'A0', padding: 12 }}>
+                                  <Icon size={28} color={meta.tint} />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                  <Text style={{ fontSize: 18, fontWeight: '700', color: colors.foreground, fontFamily: 'PlusJakartaSans_700Bold' }}>{meta.label}</Text>
+                                  <Text style={{ fontSize: 12, color: colors.mutedForeground, marginTop: 2 }}>Browse chapters and track sub-topic mastery</Text>
+                                </View>
+                                <ChevronRight size={20} color={meta.tint} />
+                              </View>
+                            </LinearGradient>
+                          </MotiView>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                ) : panel === 'chapters' ? (
+                  <View style={{ gap: 8 }}>
+                    {chapters.map((chapter: any, index: number) => (
+                      <Pressable key={chapter._id || index} onPress={() => void selectChapter(chapter)}>
+                        <MotiView
+                          animate={{ scale: 1 }}
                           style={{
-                            borderWidth: 1,
-                            borderColor: colors.border,
-                            borderRadius: 12,
-                            padding: 10,
-                            backgroundColor: colors.card,
-                            gap: 8,
+                            padding: 16, borderRadius: 16, backgroundColor: colors.card,
+                            borderWidth: 1, borderColor: colors.border,
+                            flexDirection: 'row', alignItems: 'center', gap: 12
                           }}
                         >
-                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-                              {completed ? <Trophy size={15} color={colors.success} /> : <CircleDashed size={15} color={colors.mutedForeground} />}
-                              <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: '700', flex: 1 }}>
-                                {String(sub?.subTopic || 'Sub-topic')}
-                              </Text>
+                          <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: colors.primary + '1A', alignItems: 'center', justifyContent: 'center' }}>
+                            <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 13 }}>{index + 1}</Text>
+                          </View>
+                          <Text style={{ flex: 1, fontSize: 14, fontWeight: '600', color: colors.foreground }}>{chapter._id || chapter.name}</Text>
+                          <ChevronRight size={16} color={colors.mutedForeground} />
+                        </MotiView>
+                      </Pressable>
+                    ))}
+                  </View>
+                ) : panel === 'topics' ? (
+                  <View style={{ gap: 8 }}>
+                    {toppersEssentials && hasAnyEssential(toppersEssentials) && (
+                      <Pressable onPress={() => setToppersOpen(true)}>
+                        <LinearGradient
+                          colors={['rgba(245, 158, 11, 0.15)', 'rgba(250, 204, 21, 0.05)']}
+                          style={{ borderRadius: 16, borderWidth: 1, borderColor: 'rgba(245, 158, 11, 0.3)', padding: 16, marginBottom: 8 }}
+                        >
+                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                              <View style={{ borderRadius: 8, backgroundColor: 'rgba(245, 158, 11, 0.2)', padding: 6 }}>
+                                <Star size={16} color="#fbbf24" fill="#fbbf24" />
+                              </View>
+                              <View>
+                                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground }}>Toppers Corner</Text>
+                                <Text style={{ fontSize: 10, color: colors.mutedForeground, marginTop: 2 }}>{TOPPER_RESOURCES.filter(r => hasResource(toppersEssentials!, r.key)).length} resources curated</Text>
+                              </View>
                             </View>
-                            <View style={{ borderRadius: 999, backgroundColor: chipBg, paddingHorizontal: 8, paddingVertical: 3 }}>
-                              <Text style={{ color: chipTextColor, fontSize: 10, fontWeight: '700' }}>{chipText}</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                              <Text style={{ fontSize: 11, fontWeight: '600', color: '#fbbf24' }}>View All</Text>
+                              <ChevronRight size={14} color="#fbbf24" />
                             </View>
                           </View>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                            <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>{Number(sub?.uid_count || 0)} questions</Text>
-                            <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Best {Number(progress?.bestScore || 0)}%</Text>
-                            <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Attempts {Number(progress?.attempts || 0)}</Text>
+                        </LinearGradient>
+                      </Pressable>
+                    )}
+                    {topics.map((topic: any, index: number) => (
+                      <Pressable key={index} onPress={() => void selectTopic(topic)}>
+                        <MotiView
+                          animate={{ scale: 1 }}
+                          style={{
+                            padding: 16, borderRadius: 16, backgroundColor: colors.card,
+                            borderWidth: 1, borderColor: colors.border,
+                            flexDirection: 'row', alignItems: 'center', gap: 12
+                          }}
+                        >
+                          <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: colors.primary + '1A', alignItems: 'center', justifyContent: 'center' }}>
+                            <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 13 }}>{index + 1}</Text>
                           </View>
-                          <Pressable
-                            onPress={() => void startSubtopicTest(topicName, sub)}
-                            style={{
-                              alignSelf: 'flex-start',
-                              borderRadius: 10,
-                              backgroundColor: colors.success + '18',
-                              borderWidth: 1,
-                              borderColor: colors.success + '40',
-                              paddingHorizontal: 10,
-                              paddingVertical: 7,
-                              flexDirection: 'row',
-                              alignItems: 'center',
-                              gap: 6,
-                            }}
-                          >
-                            <ButtonIcon size={13} color={colors.success} />
-                            <Text style={{ color: colors.success, fontSize: 11, fontWeight: '700' }}>{btnLabel}</Text>
-                          </Pressable>
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ fontSize: 14, fontWeight: '600', color: colors.foreground }} numberOfLines={1}>
+                              {topic.topic || topic.name || topic}
+                            </Text>
+                            {topic.sub_topics && <Text style={{ fontSize: 11, color: colors.mutedForeground }}>{topic.sub_topics.length} sub-topics</Text>}
+                          </View>
+                          <ChevronRight size={16} color={colors.mutedForeground} />
+                        </MotiView>
+                      </Pressable>
+                    ))}
+                  </View>
+                ) : (
+                  <View style={{ gap: 16 }}>
+                    {/* Progress Card */}
+                    <View style={{ padding: 16, borderRadius: 20, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
+                        <View>
+                          <Text style={{ fontSize: 12, color: colors.mutedForeground }}>Chapter Progress</Text>
+                          <Text style={{ fontSize: 18, fontWeight: '700', color: colors.foreground }}>{chapterStats.completed}/{chapterStats.total} sub-topics</Text>
+                        </View>
+                        <View style={{ alignItems: 'flex-end' }}>
+                          <Text style={{ fontSize: 14, fontWeight: '600', color: colors.primary }}>{chapterStats.completionPercent}% complete</Text>
+                          <Text style={{ fontSize: 12, color: colors.mutedForeground }}>Avg best: {chapterStats.averageBest}%</Text>
+                        </View>
+                      </View>
+                      <View style={{ height: 8, borderRadius: 4, backgroundColor: colors.muted, overflow: 'hidden' }}>
+                        <MotiView
+                          from={{ width: '0%' }}
+                          animate={{ width: `${chapterStats.completionPercent}%` }}
+                          style={{ height: '100%', backgroundColor: colors.primary }}
+                        />
+                      </View>
+                    </View>
+
+                    {topicFlows.map((flow: any) => {
+                      const validSubs = Array.isArray(flow.sub_topics) ? flow.sub_topics.filter((sub: any) => sub.uid_count > 0) : [];
+                      const completedCount = validSubs.filter((sub: any) => sub.progress?.completed).length;
+                      const bestAvg = validSubs.length > 0
+                        ? Math.round(validSubs.reduce((sum, s: any) => sum + (s.progress?.bestScore || 0), 0) / validSubs.length)
+                        : 0;
+
+                      return (
+                        <View key={flow.topic} style={{ padding: 16, borderRadius: 20, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }}>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+                            <View style={{ flex: 1 }}>
+                              <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground }}>{flow.topic}</Text>
+                              <Text style={{ fontSize: 12, color: colors.mutedForeground }}>{completedCount}/{validSubs.length} completed</Text>
+                            </View>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                              <BarChart3 size={14} color={colors.mutedForeground} />
+                              <Text style={{ fontSize: 12, color: colors.mutedForeground }}>Best Avg {bestAvg}%</Text>
+                            </View>
+                          </View>
+
+                          <View style={{ gap: 12 }}>
+                            {validSubs.map((sub: any, index: number) => {
+                              const status = getStatus(sub);
+                              const isRight = index % 2 === 1;
+                              const buttonLabel = sub.progress?.completed ? 'Retake Test' : (sub.progress?.hasTaken ? 'Resume Test' : 'Start Test');
+                              const ButtonIcon = sub.progress?.completed ? RotateCcw : (sub.progress?.hasTaken ? Play : GraduationCap);
+
+                              return (
+                                <MotiView
+                                  key={sub.subTopic}
+                                  from={{ opacity: 0, translateY: 10 }}
+                                  animate={{ opacity: 1, translateY: 0 }}
+                                  transition={{ delay: index * 50 }}
+                                  style={{ alignItems: isRight ? 'flex-end' : 'flex-start' }}
+                                >
+                                  <View style={{ width: '92%', padding: 12, borderRadius: 16, backgroundColor: status.node.bg, borderWidth: 1, borderColor: status.node.border }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+                                      <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: status.node.bg, borderWidth: 1, borderColor: status.node.border, alignItems: 'center', justifyContent: 'center' }}>
+                                        {sub.progress?.completed ? (
+                                          <CheckCircle2 size={16} color={colors.success} />
+                                        ) : sub.progress?.hasTaken ? (
+                                          <Trophy size={16} color={colors.warning} />
+                                        ) : (
+                                          <CircleDashed size={16} color={colors.mutedForeground} />
+                                        )}
+                                      </View>
+                                      <View style={{ flex: 1 }}>
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                                          <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground, flex: 1 }} numberOfLines={1}>{sub.subTopic}</Text>
+                                          <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: 99, backgroundColor: status.chip.bg, borderWidth: 1, borderColor: status.chip.border }}>
+                                            <Text style={{ fontSize: 10, color: status.chip.text }}>{status.label}</Text>
+                                          </View>
+                                        </View>
+                                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                                          <Text style={{ fontSize: 10, color: colors.mutedForeground }}>{sub.uid_count} questions</Text>
+                                          <Text style={{ fontSize: 10, color: colors.mutedForeground }}>Best: {sub.progress?.bestScore || 0}%</Text>
+                                          {sub.progress?.lastAttemptAt && <Text style={{ fontSize: 10, color: colors.mutedForeground }}>{new Date(sub.progress.lastAttemptAt).toLocaleDateString()}</Text>}
+                                        </View>
+                                        <Pressable
+                                          onPress={() => void startQuiz(flow.topic, sub, 'test')}
+                                          disabled={!!startingQuiz}
+                                          style={{
+                                            flexDirection: 'row', alignItems: 'center', gap: 6,
+                                            paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10,
+                                            backgroundColor: colors.success + '26', borderWidth: 1, borderColor: colors.success + '4D',
+                                            alignSelf: 'flex-start',
+                                            opacity: !!startingQuiz ? 0.7 : 1
+                                          }}
+                                        >
+                                          {startingQuiz === (sub.subTopic || sub.name) ? (
+                                            <ActivityIndicator size="small" color={colors.success} />
+                                          ) : (
+                                            <>
+                                              <ButtonIcon size={14} color={colors.success} />
+                                              <Text style={{ fontSize: 11, fontWeight: '700', color: colors.success }}>{buttonLabel}</Text>
+                                            </>
+                                          )}
+                                        </Pressable>
+                                      </View>
+                                    </View>
+                                  </View>
+                                </MotiView>
+                              );
+                            })}
+                          </View>
                         </View>
                       );
                     })}
-                    {subTopics.length === 0 ? (
-                      <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>No active sub-topics with questions in this topic.</Text>
-                    ) : null}
                   </View>
-                </GlassCard>
-              );
-            })}
-          </View>
-        )}
-      </ScrollView>
+                )}
+              </MotiView>
+            </AnimatePresence>
+          </ScrollView>
 
-      {/* Toppers Corner Modal */}
-      <Modal visible={toppersOpen && !!toppersEssentials} animationType="slide" transparent={false} onRequestClose={() => { setToppersOpen(false); setToppersPreviewResource(null); }}>
-        <View style={{ flex: 1, backgroundColor: toppersPreviewResource === 'video' || toppersPreviewResource === 'audio' ? '#1c1c1e' : colors.background }}>
-          <View style={{ paddingTop: insets.top, paddingHorizontal: 16, backgroundColor: toppersPreviewResource === 'video' || toppersPreviewResource === 'audio' ? '#1c1c1e' : colors.card, borderBottomWidth: toppersPreviewResource === 'video' || toppersPreviewResource === 'audio' ? 0 : 1, borderBottomColor: colors.border }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 12 }}>
-              {toppersPreviewResource ? (
-                <Pressable
-                  onPress={closeResource}
-                  style={{
-                    width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
-                    borderWidth: toppersPreviewResource === 'video' || toppersPreviewResource === 'audio' ? 0 : 1,
-                    borderColor: colors.border, backgroundColor: toppersPreviewResource === 'video' || toppersPreviewResource === 'audio' ? 'transparent' : colors.card,
-                  }}
-                >
-                  <ArrowLeft size={20} color={toppersPreviewResource === 'video' || toppersPreviewResource === 'audio' ? '#fff' : colors.foreground} />
-                </Pressable>
-              ) : (
-                <>
+          <Modal visible={toppersOpen} animationType="slide" transparent={false} onRequestClose={() => { setToppersOpen(false); closeResource(); }}>
+            <View style={{ flex: 1, backgroundColor: colors.background }}>
+              <View style={{ paddingTop: insets.top, paddingHorizontal: 16, backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 12 }}>
                   <Pressable
-                    onPress={() => { setToppersOpen(false); setToppersPreviewResource(null); }}
+                    onPress={() => toppersPreviewResource ? closeResource() : setToppersOpen(false)}
                     style={{ width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card }}
                   >
-                    <X size={20} color={colors.foreground} />
+                    {toppersPreviewResource ? <ChevronRight size={20} color={colors.foreground} style={{ transform: [{ rotate: '180deg' }] }} /> : <X size={20} color={colors.foreground} />}
                   </Pressable>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 8 }}>
-                    <View style={{ padding: 4, borderRadius: 6, backgroundColor: '#f59e0b33' }}>
-                      <Star size={14} color="#fbbf24" fill="#fbbf24" />
+                  {!toppersPreviewResource ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 8 }}>
+                      <View style={{ padding: 4, borderRadius: 6, backgroundColor: 'rgba(245, 158, 11, 0.2)' }}>
+                        <Star size={14} color="#fbbf24" fill="#fbbf24" />
+                      </View>
+                      <Text style={{ fontSize: 16, fontWeight: '700', color: colors.foreground }}>Toppers Corner</Text>
                     </View>
-                    <Text style={{ fontSize: 16, fontWeight: '700', color: colors.foreground }}>Toppers Corner</Text>
-                  </View>
-                </>
-              )}
-            </View>
-          </View>
-
-          {/* Grid View */}
-          {!toppersPreviewResource && (
-            <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 20 }}>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-                {TOPPER_RESOURCES.filter(r => toppersEssentials && hasResource(toppersEssentials, r.key)).map(r => (
-                  <Pressable
-                    key={r.key}
-                    onPress={() => openResource(r.key)}
-                    style={{
-                      width: (Dimensions.get('window').width - 44) / 2, // 2 columns, 16px padding on sides, 12px gap
-                      minHeight: 130,
-                      backgroundColor: colors.card,
-                      borderWidth: 1,
-                      borderColor: colors.border,
-                      borderRadius: 16,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: 16,
-                      gap: 12
-                    }}
-                  >
-                    <View style={{ padding: 12, borderRadius: 12, backgroundColor: '#f59e0b20' }}>
-                      <r.icon size={28} color="#fbbf24" />
-                    </View>
-                    <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground, textAlign: 'center' }}>{r.label}</Text>
-                  </Pressable>
-                ))}
+                  ) : (
+                    <Text style={{ fontSize: 16, fontWeight: '700', color: colors.foreground, flex: 1 }}>
+                      {TOPPER_RESOURCES.find(r => r.key === toppersPreviewResource)?.label}
+                    </Text>
+                  )}
+                </View>
               </View>
-            </ScrollView>
-          )}
 
-          {/* Resource Preview */}
-          {toppersPreviewResource && (
-            <View style={{ flex: 1 }}>
-              {toppersPreviewResource === 'video' && toppersEssentials?.video?.url && (
-                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                  <Video
-                    source={{ uri: toppersEssentials.video.url?.replace('dl=0', 'raw=1') }}
-                    style={{ width: '100%', height: undefined, aspectRatio: 16 / 9 }}
-                    useNativeControls
-                    resizeMode={ResizeMode.CONTAIN}
-                    shouldPlay
-                  />
-
-                  <Text
-                    style={{
-                      color: '#fff',
-                      marginTop: 16,
-                      fontSize: 16,
-                      fontWeight: 'bold',
-                      textAlign: 'center',
-                      paddingHorizontal: 16,
-                    }}
-                  >
-                    {toppersEssentials.video.title}
-                  </Text>
-                </View>
-              )}
-
-              {toppersPreviewResource === 'audio' && toppersEssentials?.audio?.url && (
-                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 }}>
-                  <View style={{ width: 120, height: 120, borderRadius: 60, backgroundColor: '#f59e0b20', alignItems: 'center', justifyContent: 'center', marginBottom: 32 }}>
-                    <FileAudio size={64} color="#fbbf24" />
+              {!toppersPreviewResource ? (
+                <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 20 }}>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+                    {TOPPER_RESOURCES.filter(r => toppersEssentials && hasResource(toppersEssentials, r.key)).map(r => (
+                      <Pressable
+                        key={r.key}
+                        onPress={() => openResource(r.key)}
+                        style={{
+                          width: Math.floor((Dimensions.get('window').width - 44) / 2) - 2,
+                          minHeight: 130,
+                          backgroundColor: colors.card,
+                          borderWidth: 1,
+                          borderColor: colors.border,
+                          borderRadius: 20,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: 16,
+                          gap: 12
+                        }}
+                      >
+                        <View style={{ padding: 12, borderRadius: 12, backgroundColor: 'rgba(245, 158, 11, 0.15)' }}>
+                          <r.icon size={28} color="#fbbf24" />
+                        </View>
+                        <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground, textAlign: 'center' }}>{r.label}</Text>
+                      </Pressable>
+                    ))}
                   </View>
-                  <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold', textAlign: 'center', marginBottom: 24 }}>{toppersEssentials.audio.title || 'Audio Notes'}</Text>
-                  {/* Basic audio control mapping without complex custom player to save space */}
-                  <Video // using video component for audio with hidden visual to leverage native controls easily
-                    source={{ uri: toppersEssentials.audio.url.replace('dl=0', 'raw=1') }}
-                    style={{ width: '100%', height: 60 }}
-                    useNativeControls
-                    shouldPlay
-                    resizeMode={ResizeMode.CONTAIN}
-                  />
-                </View>
-              )}
-
-              {(toppersPreviewResource === 'shortnotes' || toppersPreviewResource === 'slidesdeck' || toppersPreviewResource === 'mindmap') && (
-                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
-                  <View style={{ width: 80, height: 80, borderRadius: 20, backgroundColor: colors.muted, alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
-                    <LayoutDashboard size={40} color={colors.mutedForeground} />
+                </ScrollView>
+              ) : (
+                <View style={{ flex: 1 }}>
+                  <View style={{ flex: 1, padding: 24, justifyContent: 'center', alignItems: 'center' }}>
+                    <Text style={{ color: colors.mutedForeground, textAlign: 'center' }}>
+                      Resource: {toppersPreviewResource.toUpperCase()} Rendering
+                    </Text>
+                    <Text style={{ color: colors.mutedForeground, textAlign: 'center', fontSize: 12, marginTop: 8 }}>
+                      Native implementation for specific viewers following soon.
+                    </Text>
                   </View>
-                  <Text style={{ fontSize: 20, fontWeight: 'bold', color: colors.foreground, textAlign: 'center', marginBottom: 8 }}>
-                    {TOPPER_RESOURCES.find(r => r.key === toppersPreviewResource)?.label}
-                  </Text>
-                  <Text style={{ fontSize: 14, color: colors.mutedForeground, textAlign: 'center' }}>
-                    Web visualization mapping required. Please view this resource on the companion desktop app.
-                  </Text>
                 </View>
               )}
             </View>
-          )}
+          </Modal>
         </View>
-      </Modal>
-
-    </View>
-  );
+        );
 }

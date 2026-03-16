@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/contexts/ThemeContext';
 import apiService from '@/lib/apiService';
 import { Button } from '@/components/ui/Button';
+import BottomNav from '@/components/BottomNav';
 
 type Phase = 'intro' | 'reading' | 'quiz' | 'results' | 'already-completed';
 
@@ -431,6 +432,7 @@ const DailyChallenge = () => {
           )}
         </AnimatePresence>
       </ScrollView>
+      <BottomNav />
     </View>
   );
 };

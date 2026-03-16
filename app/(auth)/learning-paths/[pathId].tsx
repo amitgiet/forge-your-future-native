@@ -28,7 +28,7 @@ export default function LearningPathDetailScreen() {
       if (res.data?.success) {
         setPath(res.data.data);
       }
-    } catch {} finally {
+    } catch { } finally {
       setLoading(false);
     }
   };
@@ -61,7 +61,7 @@ export default function LearningPathDetailScreen() {
           try {
             await apiService.learningPaths.deletePath(pathId);
             router.back();
-          } catch {}
+          } catch { }
         },
       },
     ]);
@@ -170,7 +170,7 @@ export default function LearningPathDetailScreen() {
                       )}
                       {!isComplete && (
                         <Button size="sm" onPress={() => handleComplete(i)} loading={completing === i}>
-                          <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>Mark Complete</Text>
+                          <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600', fontFamily: 'Inter_600SemiBold' }}>Mark Complete</Text>
                         </Button>
                       )}
                     </GlassCard>

@@ -8,6 +8,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import NeuronzDashboard from '@/components/NeuronzDashboard';
 import QuizPlayer, { QuizQuestion } from '@/components/QuizPlayer';
+import BottomNav from '@/components/BottomNav';
 import {
   getMasteryProgress,
   loadDueQuestions,
@@ -84,17 +85,26 @@ const Revision = () => {
   const quizQuestions: QuizQuestion[] = useMemo(
     () =>
       normalizedQuestions.map((q) => ({
-        id: q.questionId,
+        _id: q.questionId,
         question: q.question,
         type: 'mcq',
-        options: q.options,
-        correctAnswer: q.correctIndex ?? undefined,
+        options: {
+          A: q.options[0],
+          B: q.options[1],
+          C: q.options[2],
+          D: q.options[3],
+        },
+        correctAnswer: q.correctIndex !== null ? ['A', 'B', 'C', 'D'][q.correctIndex] : undefined,
         explanation: q.explanation,
       })),
     [normalizedQuestions]
   );
 
-  const handleSubmitLevelQuiz = async (data: { answers: (number | number[] | null)[]; timeTaken: number }) => {
+  const handleSubmitLevelQuiz = async (data: {
+    answers: (string | string[] | number | null)[];
+    timeSpent: number;
+    markedForReview: number[];
+  }) => {
     if (!isLevelMode || normalizedQuestions.length === 0) return;
     const payload: { questionId: string; wasCorrect: boolean }[] = [];
     let attempted = 0;
@@ -102,9 +112,10 @@ const Revision = () => {
 
     normalizedQuestions.forEach((question, index) => {
       const answer = data.answers[index];
-      if (typeof answer !== 'number') return;
+      if (typeof answer !== 'string') return;
       attempted += 1;
-      const wasCorrect = question.correctIndex !== null && answer === question.correctIndex;
+      const answerIndex = ['A', 'B', 'C', 'D'].indexOf(answer);
+      const wasCorrect = question.correctIndex !== null && answerIndex === question.correctIndex;
       if (wasCorrect) correct += 1;
       payload.push({ questionId: question.questionId, wasCorrect });
     });
@@ -121,13 +132,16 @@ const Revision = () => {
   /* ── Dashboard view (no level param) — same as web */
   if (!isLevelMode) {
     return (
-      <ScrollView
-        style={{ flex: 1, backgroundColor: colors.background }}
-        contentContainerStyle={{ padding: 16, paddingTop: insets.top + 8, paddingBottom: 112 }}
-        showsVerticalScrollIndicator={false}
-      >
-        <NeuronzDashboard />
-      </ScrollView>
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ padding: 16, paddingTop: insets.top + 8, paddingBottom: 112 }}
+          showsVerticalScrollIndicator={false}
+        >
+          <NeuronzDashboard />
+        </ScrollView>
+        <BottomNav />
+      </View>
     );
   }
 
@@ -183,6 +197,7 @@ const Revision = () => {
             </Pressable>
           </MotiView>
         </ScrollView>
+        <BottomNav />
       </View>
     );
   }
@@ -216,6 +231,7 @@ const Revision = () => {
             <Text style={{ fontSize: 14, color: colors.destructive }}>{error}</Text>
           </View>
         </View>
+        <BottomNav />
       </View>
     );
   }
@@ -247,6 +263,7 @@ const Revision = () => {
             </Text>
           </View>
         </View>
+        <BottomNav />
       </View>
     );
   }

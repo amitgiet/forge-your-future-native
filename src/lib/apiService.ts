@@ -231,6 +231,31 @@ export const apiService = {
       api.get(`/social/messages/${chatId}?limit=${limit || 50}&skip=${skip || 0}`),
   },
 
+  // Doubts APIs
+  doubts: {
+    getDoubts: (filters?: any) => api.get('/doubts', { params: filters }),
+
+    getDoubtById: (doubtId: string) => api.get(`/doubts/${doubtId}`),
+
+    createDoubt: (data: { title: string; body: string; subject: string; chapterId?: string; tags?: string[] }) =>
+      api.post('/doubts', data),
+
+    postAnswer: (doubtId: string, data: { body: string }) =>
+      api.post(`/doubts/${doubtId}/answers`, data),
+
+    upvoteDoubt: (doubtId: string) =>
+      api.post(`/doubts/${doubtId}/upvote`),
+
+    upvoteAnswer: (doubtId: string, answerId: string) =>
+      api.post(`/doubts/${doubtId}/answers/${answerId}/upvote`),
+
+    acceptAnswer: (doubtId: string, answerId: string) =>
+      api.post(`/doubts/${doubtId}/answers/${answerId}/accept`),
+
+    resolveDoubt: (doubtId: string) =>
+      api.post(`/doubts/${doubtId}/resolve`),
+  },
+
   // Revision APIs (7-Level System)
   revisions: {
     startRevision: (data: { subject: string; chapter: string; topic: string }) =>

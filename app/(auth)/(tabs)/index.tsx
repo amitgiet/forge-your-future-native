@@ -51,7 +51,7 @@ const colorMap: Record<string, string> = {
 
 export default function DashboardScreen() {
   const router = useRouter();
-  const { colors } = useTheme();
+  const { colors, shadows } = useTheme();
   const dispatch = useAppDispatch();
   const { dueQuestions } = useAppSelector((state) => state.neuronz);
   const insets = useSafeAreaInsets();
@@ -204,7 +204,7 @@ export default function DashboardScreen() {
                 colors={[...gradients.primary]}
                 start={gradientProps.start}
                 end={gradientProps.end}
-                style={{ width: 40, height: 40, borderRadius: 16, alignItems: 'center', justifyContent: 'center' }}
+                style={{ width: 40, height: 40, borderRadius: 22, alignItems: 'center', justifyContent: 'center' }}
               >
                 <Text style={{ fontSize: 14, fontWeight: '700', color: '#fff', fontFamily: 'Inter_700Bold' }}>A</Text>
               </LinearGradient>
@@ -224,16 +224,17 @@ export default function DashboardScreen() {
               style={{
                 flex: 1,
                 backgroundColor: colors.card,
-                borderRadius: 12,
+                borderRadius: 20,
                 borderWidth: 1,
                 borderColor: colors.border,
-                paddingVertical: 12,
+                paddingVertical: 14,
                 alignItems: 'center',
                 gap: 6,
+                ...shadows.card,
               }}
             >
               <View style={{
-                width: 32, height: 32, borderRadius: 10,
+                width: 38, height: 38, borderRadius: 22,
                 backgroundColor: stat.color + '20',
                 alignItems: 'center', justifyContent: 'center',
               }}>
@@ -257,16 +258,17 @@ export default function DashboardScreen() {
         transition={{ type: 'timing', duration: 400, delay: 200 }}
         style={{
           backgroundColor: colors.card,
-          borderRadius: 16,
+          borderRadius: 20,
           borderWidth: 1,
           borderColor: colors.border,
           padding: 16,
           marginBottom: 16,
+          ...shadows.card,
         }}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 }}>
           <Zap size={16} color={colors.warning} />
-          <Text style={{ fontSize: 11, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold', textTransform: 'uppercase', letterSpacing: 1 }}>
+          <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold', textTransform: 'uppercase', letterSpacing: 1 }}>
             Today's Progress
           </Text>
         </View>
@@ -289,7 +291,7 @@ export default function DashboardScreen() {
         {((todayProgress.chaptersCovered ?? 0) > 0 || (todayProgress.resourcesViewedToday ?? 0) > 0) && (
           <View style={{ flexDirection: 'row', gap: 8, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border }}>
             {(todayProgress.chaptersCovered ?? 0) > 0 && (
-              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.primary + '14', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 }}>
+              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.primary + '14', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 8 }}>
                 <BookOpen size={14} color={colors.primary} />
                 <View>
                   <Text style={{ fontSize: 14, fontWeight: '700', color: colors.primary, fontFamily: 'Inter_700Bold' }}>{todayProgress.chaptersCovered}</Text>
@@ -298,7 +300,7 @@ export default function DashboardScreen() {
               </View>
             )}
             {(todayProgress.resourcesViewedToday ?? 0) > 0 && (
-              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.warning + '14', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 }}>
+              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.warning + '14', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 8 }}>
                 <Crown size={14} color={colors.warning} />
                 <View>
                   <Text style={{ fontSize: 14, fontWeight: '700', color: colors.warning, fontFamily: 'Inter_700Bold' }}>{todayProgress.resourcesViewedToday}</Text>
@@ -307,7 +309,7 @@ export default function DashboardScreen() {
               </View>
             )}
             {(todayProgress.topperStudyMinutes ?? 0) > 0 && (
-              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.success + '14', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 }}>
+              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.success + '14', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 8 }}>
                 <Star size={14} color={colors.success} />
                 <View>
                   <Text style={{ fontSize: 14, fontWeight: '700', color: colors.success, fontFamily: 'Inter_700Bold' }}>{todayProgress.topperStudyMinutes}m</Text>
@@ -331,7 +333,7 @@ export default function DashboardScreen() {
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
           <Zap size={16} color={colors.warning} />
-          <Text style={{ fontSize: 11, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold', textTransform: 'uppercase', letterSpacing: 1 }}>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold', textTransform: 'uppercase', letterSpacing: 1 }}>
             Quick Actions
           </Text>
         </View>
@@ -343,20 +345,21 @@ export default function DashboardScreen() {
               style={({ pressed }) => ({
                 width: '30%',
                 backgroundColor: colors.card,
-                borderRadius: 12,
+                borderRadius: 20,
                 borderWidth: 1,
                 borderColor: colors.border,
                 paddingVertical: 16,
                 alignItems: 'center',
                 gap: 8,
                 opacity: pressed ? 0.8 : 1,
+                ...shadows.card,
               })}
             >
-              <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: action.color + '20', alignItems: 'center', justifyContent: 'center' }}>
+              <View style={{ width: 38, height: 38, borderRadius: 22, backgroundColor: action.color + '20', alignItems: 'center', justifyContent: 'center' }}>
                 <action.Icon size={20} color={action.color} />
               </View>
-              <Text style={{ fontSize: 13, fontWeight: '600', color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>{action.label}</Text>
-              <Text style={{ fontSize: 10, color: colors.mutedForeground, fontFamily: 'Inter_400Regular' }}>{action.sub}</Text>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>{action.label}</Text>
+              <Text style={{ fontSize: 11, color: colors.mutedForeground, fontFamily: 'Inter_400Regular' }}>{action.sub}</Text>
             </Pressable>
           ))}
         </View>
@@ -371,7 +374,7 @@ export default function DashboardScreen() {
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
           <BookMarked size={16} color={colors.primary} />
-          <Text style={{ fontSize: 11, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold', textTransform: 'uppercase', letterSpacing: 1 }}>
+          <Text style={{ fontSize: 15, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold', textTransform: 'uppercase', letterSpacing: 1 }}>
             Study Resources
           </Text>
         </View>
@@ -384,12 +387,13 @@ export default function DashboardScreen() {
               style={({ pressed }) => ({
                 flexDirection: 'row', alignItems: 'center', gap: 12,
                 backgroundColor: colors.card,
-                borderRadius: 16, borderWidth: 1, borderColor: colors.border,
+                borderRadius: 20, borderWidth: 1, borderColor: colors.border,
                 padding: 16,
                 opacity: !resource.path ? 0.5 : pressed ? 0.8 : 1,
+                ...shadows.card,
               })}
             >
-              <View style={{ padding: 12, borderRadius: 12, backgroundColor: resource.color + '20' }}>
+              <View style={{ padding: 12, borderRadius: 14, backgroundColor: resource.color + '20' }}>
                 <resource.Icon size={20} color={resource.color} />
               </View>
               <View style={{ flex: 1 }}>

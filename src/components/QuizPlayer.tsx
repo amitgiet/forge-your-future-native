@@ -28,7 +28,7 @@ import { QuizOption } from '@/components/ui/QuizOption';
 /* ------------------------------------------------------------------ */
 
 export interface QuizQuestion {
-  _id: string;
+  _id?: string;
   id?: string;
   question: string;
   type: 'mcq' | 'multiple_select' | 'numerical';
@@ -42,6 +42,9 @@ export interface QuizQuestion {
 export interface QuizPlayerConfig {
   positiveMarks?: number;
   negativeMarks?: number;
+  showDifficulty?: boolean;
+  showMarks?: boolean;
+  showExplanations?: boolean;
 }
 
 export interface QuizPlayerProps {
@@ -308,7 +311,7 @@ export const QuizPlayer = ({
           <Badge variant="outline">
             {`Q${currentIndex + 1} / ${questions.length}`}
           </Badge>
-          {q.difficulty && (
+          {q.difficulty && config?.showDifficulty !== false && (
             <Badge
               variant={
                 q.difficulty === 'easy'
@@ -335,7 +338,7 @@ export const QuizPlayer = ({
           >
             {q.question}
           </Text>
-          {q.marks != null && (
+          {q.marks != null && config?.showMarks !== false && (
             <Text
               style={{
                 fontSize: 12,
@@ -426,8 +429,8 @@ export const QuizPlayer = ({
           </View>
         )}
 
-        {/* Explanation (read-only mode) */}
-        {readOnly && q.explanation && (
+        {/* Explanation (read-only mode or forced show) */}
+        {(readOnly || config?.showExplanations) && q.explanation && (
           <GlassCard
             style={{
               backgroundColor: colors.success + '08',

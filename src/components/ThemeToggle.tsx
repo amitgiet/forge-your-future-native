@@ -12,7 +12,7 @@ export const ThemeToggle = () => {
       style={{
         width: 40,
         height: 40,
-        borderRadius: 12,
+        borderRadius: 22,
         backgroundColor: colors.muted,
         alignItems: 'center',
         justifyContent: 'center',

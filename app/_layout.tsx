@@ -59,6 +59,25 @@ export default function RootLayout() {
     onLayoutRootView();
   }, [onLayoutRootView]);
 
+  useEffect(() => {
+    if (fontsLoaded) {
+      const Text = require('react-native').Text;
+      const TextInput = require('react-native').TextInput;
+
+      if (Text.defaultProps == null) {
+        Text.defaultProps = {};
+        Text.defaultProps.style = {};
+      }
+      Text.defaultProps.style = { fontFamily: 'Inter_400Regular' };
+
+      if (TextInput.defaultProps == null) {
+        TextInput.defaultProps = {};
+        TextInput.defaultProps.style = {};
+      }
+      TextInput.defaultProps.style = { fontFamily: 'Inter_400Regular' };
+    }
+  }, [fontsLoaded]);
+
   if (!fontsLoaded) return null;
 
   return (

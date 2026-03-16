@@ -4,6 +4,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowLeft, Plus, BookOpen, ChevronRight, Check } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
+import BottomNav from '@/components/BottomNav';
 import apiService from '@/lib/apiService';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Button } from '@/components/ui/Button';
@@ -171,6 +172,7 @@ export default function RevisionTrackScreen() {
           </View>
         )}
       </ScrollView>
+      <BottomNav />
     </View>
   );
 }

@@ -9,6 +9,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/contexts/ThemeContext';
 import apiService from '@/lib/apiService';
+import BottomNav from '@/components/BottomNav';
 
 interface SubjectAccuracy {
   subject: string;
@@ -127,11 +128,12 @@ const Analytics = () => {
   };
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={{ paddingHorizontal: 16, paddingTop: insets.top + 8, paddingBottom: 32 }}
-      showsVerticalScrollIndicator={false}
-    >
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: insets.top + 8, paddingBottom: 100 }}
+        showsVerticalScrollIndicator={false}
+      >
       {/* Header — matching web */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 24, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}>
         <Pressable
@@ -314,7 +316,9 @@ const Analytics = () => {
           </View>
         )}
       </MotiView>
-    </ScrollView>
+      </ScrollView>
+      <BottomNav />
+    </View>
   );
 };
 

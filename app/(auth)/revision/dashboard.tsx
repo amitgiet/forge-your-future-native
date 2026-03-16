@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowLeft, TrendingUp, Target, Brain, Calendar, Flame } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
+import BottomNav from '@/components/BottomNav';
 import apiService from '@/lib/apiService';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Badge } from '@/components/ui/Badge';
@@ -159,6 +160,7 @@ export default function RevisionDashboardScreen() {
           </>
         )}
       </ScrollView>
+      <BottomNav />
     </View>
   );
 }

@@ -11,10 +11,10 @@ export const spacing = {
 };
 
 export const radii = {
-  sm: 15,   // ~0.93rem
-  md: 19,   // 1.18rem
-  lg: 23,   // 1.43rem
-  xl: 27,   // 1.68rem
-  '2xl': 35,
+  sm: 20,   // global card radius
+  md: 20,   // global card radius (matches sm for consistent card look)
+  lg: 24,
+  xl: 28,
+  '2xl': 36,
   full: 9999,
 };

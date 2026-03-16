@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/contexts/ThemeContext';
 import apiService from '@/lib/apiService';
 import { LinearGradient } from 'expo-linear-gradient';
+import BottomNav from '@/components/BottomNav';
 
 interface StudyTask {
   _id: string;
@@ -199,7 +200,8 @@ const StudyPlanner = () => {
   }, 0);
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={{ padding: 16, paddingTop: insets.top + 8, paddingBottom: 64 }} showsVerticalScrollIndicator={false}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: insets.top + 8, paddingBottom: 64 }} showsVerticalScrollIndicator={false}>
       {/* Header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -373,7 +375,9 @@ const StudyPlanner = () => {
           </View>
         )}
       </View>
-    </ScrollView>
+      </ScrollView>
+      <BottomNav />
+    </View>
   );
 };
 

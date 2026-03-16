@@ -14,9 +14,19 @@ export default function QuizInstructionsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-  const params = useLocalSearchParams<{ subject?: string; chapterId?: string; topic?: string; topicId?: string; title?: string }>();
+  const params = useLocalSearchParams<{
+    subject?: string;
+    chapterId?: string;
+    topic?: string;
+    topicId?: string;
+    title?: string;
+    runId?: string;
+    duration?: string;
+    questions?: string;
+    mode?: 'practice' | 'test';
+  }>();
 
-  const [mode, setMode] = useState<'practice' | 'test'>('practice');
+  const [mode, setMode] = useState<'practice' | 'test'>(params.mode || 'practice');
   const [starting, setStarting] = useState(false);
 
   const topicName = params.topic || params.title || 'Quiz';
@@ -24,6 +34,15 @@ export default function QuizInstructionsScreen() {
   const handleStart = async () => {
     setStarting(true);
     try {
+      if (params.runId) {
+        // Already started curriculum run
+        router.replace({
+          pathname: '/(auth)/practice/session/[challengeId]',
+          params: { challengeId: params.runId },
+        } as any);
+        return;
+      }
+
       if (params.topicId) {
         // NCERT topic quiz
         const res = await apiService.ncertSearch.getTopicQuiz(params.topicId, 10);
@@ -34,7 +53,7 @@ export default function QuizInstructionsScreen() {
           } as any);
         }
       } else if (params.subject && params.chapterId && params.topic) {
-        // Curriculum practice
+        // Curriculum practice (needs starting)
         router.replace({
           pathname: '/(auth)/practice/start',
           params: { subject: params.subject, chapterId: params.chapterId, topic: params.topic, mode },
@@ -72,8 +91,20 @@ export default function QuizInstructionsScreen() {
           <Text style={{ fontSize: 18, fontWeight: '700', color: colors.foreground, fontFamily: 'PlusJakartaSans_700Bold', textAlign: 'center' }}>
             {topicName}
           </Text>
-          <View style={{ flexDirection: 'row', gap: 6 }}>
+          <View style={{ flexWrap: 'wrap', flexDirection: 'row', justifyContent: 'center', gap: 6 }}>
             {params.subject && <Badge variant="primary">{params.subject}</Badge>}
+            {params.questions && (
+              <Badge variant="outline">
+                {(() => {
+                  try {
+                    return JSON.parse(params.questions).length;
+                  } catch {
+                    return '?';
+                  }
+                })()} questions
+              </Badge>
+            )}
+            {params.duration && <Badge variant="secondary">{params.duration} mins</Badge>}
           </View>
         </GlassCard>
 

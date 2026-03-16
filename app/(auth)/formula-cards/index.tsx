@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, FlaskConical, Atom, Zap } from 'lucide-react
 import { useTheme } from '@/contexts/ThemeContext';
 import apiService from '@/lib/apiService';
 import { getImageUrl } from '@/lib/utils';
+import BottomNav from '@/components/BottomNav';
 
 const subjectIcons: Record<string, React.ReactNode> = {
   physics: <Zap size={20} color="#3b82f6" />,
@@ -54,14 +55,14 @@ export default function FormulaCardsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <View style={{ paddingTop: insets.top, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.card, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <Pressable onPress={() => router.back()} style={{ padding: 4 }}>
+      <View style={{ paddingTop: insets.top, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.card, paddingVertical: 20, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <Pressable onPress={() => router.canGoBack() ? router.back() : router.replace('/(auth)/(tabs)')} style={{ padding: 4 }}>
           <ChevronLeft size={24} color={colors.foreground} />
         </Pressable>
         <Text style={{ fontSize: 18, fontWeight: '700', color: colors.foreground }}>📋 Formula Cards</Text>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 20 }}>
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 100 }}>
         {loading ? (
           <View style={{ paddingVertical: 40, alignItems: 'center', justifyContent: 'center' }}>
             <ActivityIndicator size="large" color={colors.primary} style={{ marginBottom: 16 }} />
@@ -128,6 +129,8 @@ export default function FormulaCardsScreen() {
           </View>
         )}
       </ScrollView>
+      
+      <BottomNav />
     </View>
   );
 }

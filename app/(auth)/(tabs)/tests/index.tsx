@@ -59,7 +59,7 @@ export default function TestsIndexScreen() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [search, setSearch] = useState('');
   const [selectedClass, setSelectedClass] = useState<ClassCategory>('all');
   const [selectedCoaching, setSelectedCoaching] = useState<CoachingFilter>('all');
@@ -69,23 +69,23 @@ export default function TestsIndexScreen() {
 
   const [activeMainTab, setActiveMainTab] = useState<'all' | 'curriculum'>('all');
   const [seriesCatalog, setSeriesCatalog] = useState<any[]>([]);
-  
+
   const [subjects, setSubjects] = useState<any[]>([]);
   const [chapters, setChapters] = useState<any[]>([]);
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
   const [selectedChapterId, setSelectedChapterId] = useState<string | null>(null);
   const [loadingHierarchy, setLoadingHierarchy] = useState(false);
-  
+
   const [chapterTests, setChapterTests] = useState<any[]>([]);
 
   const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const catalogRes = await apiService.testSeries.getSeriesCatalog();
       setSeriesCatalog(Array.isArray(catalogRes.data?.data) ? catalogRes.data.data : []);
-      
+
       const subRes = await apiService.testSeries.getHierarchySubjects();
       if (subRes.data?.success) {
         const subs = subRes.data.data;
@@ -104,7 +104,7 @@ export default function TestsIndexScreen() {
       setLoadingHierarchy(true);
       const res = await apiService.testSeries.getHierarchyChapters(subId);
       if (res.data?.success) setChapters(res.data.data);
-    } catch (e) {} finally {
+    } catch (e) { } finally {
       setLoadingHierarchy(false);
     }
   };
@@ -114,7 +114,7 @@ export default function TestsIndexScreen() {
       setLoadingHierarchy(true);
       const res = await apiService.testSeries.getTestsByChapter(chapId, { page: 1, limit: 500 });
       setChapterTests(Array.isArray(res.data?.data) ? res.data.data : []);
-    } catch(e) {} finally {
+    } catch (e) { } finally {
       setLoadingHierarchy(false);
     }
   };
@@ -135,7 +135,7 @@ export default function TestsIndexScreen() {
 
   const seriesOptions = useMemo(() => {
     const q = search.trim().toLowerCase();
-    
+
     if (activeMainTab === 'all') {
       return seriesCatalog
         .map((row) => [String(row.seriesType || ''), Number(row.count || 0)] as [string, number])
@@ -146,7 +146,7 @@ export default function TestsIndexScreen() {
         })
         .sort((a, b) => sortSeriesByLabelAsc(a[0], b[0]));
     }
-    
+
     // For curriculum tab with chapter selected
     const bySeries = new Map<string, number>();
     chapterTests.forEach((t: any) => {
@@ -154,7 +154,7 @@ export default function TestsIndexScreen() {
       bySeries.set(key, (bySeries.get(key) || 0) + 1);
     });
     return [...bySeries.entries()].sort((a, b) => sortSeriesByLabelAsc(a[0], b[0]));
-    
+
   }, [activeMainTab, search, seriesCatalog, chapterTests]);
 
   const seriesCatalogCompletionMap = useMemo(() => {
@@ -174,10 +174,10 @@ export default function TestsIndexScreen() {
             <Text style={{ fontSize: 18, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold' }}>Test Series</Text>
             <Text style={{ fontSize: 12, color: colors.mutedForeground }}>{activeMainTab === 'all' && seriesCatalog.length ? catalogTotalTests : chapterTests.length} tests available</Text>
           </View>
-          <Pressable onPress={() => setShowFilters(!showFilters)} style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: showFilters ? colors.primary : colors.muted, alignItems: 'center', justifyContent: 'center' }}>
+          <Pressable onPress={() => setShowFilters(!showFilters)} style={{ width: 38, height: 38, borderRadius: 20, backgroundColor: showFilters ? colors.primary : colors.muted, alignItems: 'center', justifyContent: 'center' }}>
             <SlidersHorizontal size={16} color={showFilters ? '#fff' : colors.mutedForeground} />
             {activeFilterCount > 0 && (
-              <View style={{ position: 'absolute', top: -4, right: -4, width: 16, height: 16, borderRadius: 8, backgroundColor: colors.destructive, alignItems: 'center', justifyContent: 'center' }}>
+              <View style={{ position: 'absolute', top: -4, right: -4, width: 16, height: 16, borderRadius: 20, backgroundColor: colors.destructive, alignItems: 'center', justifyContent: 'center' }}>
                 <Text style={{ fontSize: 9, fontWeight: '700', color: '#fff' }}>{activeFilterCount}</Text>
               </View>
             )}
@@ -188,10 +188,10 @@ export default function TestsIndexScreen() {
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
         {/* Search Bar */}
         <View style={{ position: 'relative', marginBottom: 12 }}>
-          <View style={{ position: 'absolute', left: 12, top: 12, zIndex: 1 }}><Search size={16} color={colors.mutedForeground} /></View>
+          <View style={{ position: 'absolute', left: 14, top: 14, zIndex: 1 }}><Search size={16} color={colors.mutedForeground} /></View>
           <TextInput
             value={search} onChangeText={setSearch} placeholder="Search series..." placeholderTextColor={colors.mutedForeground}
-            style={{ height: 40, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingLeft: 36, paddingRight: 36, color: colors.foreground, fontSize: 14 }}
+            style={{ height: 45, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 22, paddingLeft: 36, paddingRight: 36, color: colors.foreground, fontSize: 14, letterSpacing: 0.3 }}
           />
           {search ? (
             <Pressable onPress={() => setSearch('')} style={{ position: 'absolute', right: 12, top: 12, zIndex: 1 }}>
@@ -201,12 +201,12 @@ export default function TestsIndexScreen() {
         </View>
 
         {/* Main Tab Switcher */}
-        <View style={{ flexDirection: 'row', backgroundColor: colors.muted, padding: 4, borderRadius: 12, marginBottom: 16, borderWidth: 1, borderColor: colors.border + '80' }}>
-          <Pressable onPress={() => setActiveMainTab('all')} style={{ flex: 1, paddingVertical: 8, borderRadius: 8, backgroundColor: activeMainTab === 'all' ? colors.card : 'transparent', shadowColor: activeMainTab === 'all' ? '#000' : 'transparent', shadowOpacity: 0.1, shadowRadius: 2, shadowOffset: { width: 0, height: 1 } }}>
-            <Text style={{ textAlign: 'center', fontSize: 12, fontWeight: '700', color: activeMainTab === 'all' ? colors.primary : colors.mutedForeground }}>All Series</Text>
+        <View style={{ flexDirection: 'row', backgroundColor: colors.muted, padding: 5, borderRadius: 22, marginBottom: 16, borderWidth: 1, borderColor: colors.border + '80' }}>
+          <Pressable onPress={() => setActiveMainTab('all')} style={{ flex: 1, paddingVertical: 8, borderRadius: 22, backgroundColor: activeMainTab === 'all' ? colors.card : 'transparent', shadowColor: activeMainTab === 'all' ? '#000' : 'transparent', shadowOpacity: 0.1, shadowRadius: 2, shadowOffset: { width: 0, height: 1 } }}>
+            <Text style={{ textAlign: 'center', fontSize: 12, fontWeight: '700', color: activeMainTab === 'all' ? colors.primary : colors.mutedForeground, letterSpacing: 0.5 }}>All Series</Text>
           </Pressable>
-          <Pressable onPress={() => setActiveMainTab('curriculum')} style={{ flex: 1, paddingVertical: 8, borderRadius: 8, backgroundColor: activeMainTab === 'curriculum' ? colors.card : 'transparent', shadowColor: activeMainTab === 'curriculum' ? '#000' : 'transparent', shadowOpacity: 0.1, shadowRadius: 2, shadowOffset: { width: 0, height: 1 } }}>
-            <Text style={{ textAlign: 'center', fontSize: 12, fontWeight: '700', color: activeMainTab === 'curriculum' ? colors.primary : colors.mutedForeground }}>Chapter Series</Text>
+          <Pressable onPress={() => setActiveMainTab('curriculum')} style={{ flex: 1, paddingVertical: 8, borderRadius: 22, backgroundColor: activeMainTab === 'curriculum' ? colors.card : 'transparent', shadowColor: activeMainTab === 'curriculum' ? '#000' : 'transparent', shadowOpacity: 0.1, shadowRadius: 2, shadowOffset: { width: 0, height: 1 } }}>
+            <Text style={{ textAlign: 'center', fontSize: 12, fontWeight: '700', color: activeMainTab === 'curriculum' ? colors.primary : colors.mutedForeground, letterSpacing: 0.5 }}>Chapter Series</Text>
           </Pressable>
         </View>
 
@@ -242,6 +242,55 @@ export default function TestsIndexScreen() {
                             <Text style={{ fontSize: 12, fontWeight: '600', color: isSelected ? '#fff' : colors.foreground, flex: 1, paddingRight: 8 }}>{ch.name}</Text>
                             <ChevronRight size={16} color={isSelected ? '#fff' : colors.mutedForeground} style={{ transform: [{ rotate: isSelected ? '90deg' : '0deg' }] }} />
                           </Pressable>
+                          <AnimatePresence>
+                            {isSelected && (
+                              <MotiView
+                                from={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                style={{ overflow: 'hidden', backgroundColor: colors.muted + '26', borderTopWidth: 1, borderTopColor: colors.border }}
+                              >
+                                <View style={{ padding: 12, gap: 10 }}>
+                                  {loadingHierarchy && !chapterTests.length ? (
+                                    <View style={{ padding: 16, alignItems: 'center' }}>
+                                      <ActivityIndicator size="small" color={colors.primary} />
+                                    </View>
+                                  ) : seriesOptions.length > 0 ? (
+                                    seriesOptions.map(([series, count]) => {
+                                      const IconComp = seriesIcons[series] || FileText;
+                                      return (
+                                        <Pressable key={series} onPress={() => router.push(`/(auth)/tests/${encodeURIComponent(series)}` as any)}
+                                          style={{ borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 10 }}
+                                        >
+                                          <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.primary + '1A', alignItems: 'center', justifyContent: 'center' }}>
+                                            <IconComp size={16} color={colors.primary} />
+                                          </View>
+                                          <View style={{ flex: 1 }}>
+                                            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.foreground }}>{prettySeriesLabel(series)}</Text>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 }}>
+                                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                                <FileText size={10} color={colors.primary} />
+                                                <Text style={{ fontSize: 10, fontWeight: '600', color: colors.primary }}>{count} tests</Text>
+                                              </View>
+                                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                                <CheckCircle2 size={10} color={colors.success} />
+                                                <Text style={{ fontSize: 10, fontWeight: '600', color: colors.success }}>Done {seriesCatalogCompletionMap[series] || 0}/{count}</Text>
+                                              </View>
+                                            </View>
+                                          </View>
+                                          <ChevronRight size={16} color={colors.mutedForeground} />
+                                        </Pressable>
+                                      );
+                                    })
+                                  ) : (
+                                    <View style={{ padding: 16, alignItems: 'center' }}>
+                                      <Text style={{ fontSize: 12, color: colors.mutedForeground, fontStyle: 'italic' }}>No series for this chapter</Text>
+                                    </View>
+                                  )}
+                                </View>
+                              </MotiView>
+                            )}
+                          </AnimatePresence>
                         </View>
                       );
                     })
@@ -251,12 +300,7 @@ export default function TestsIndexScreen() {
                 </View>
               </View>
             )}
-            {selectedChapterId && (
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, paddingHorizontal: 4 }}>
-                <Text style={{ fontSize: 10, fontWeight: '600', color: colors.mutedForeground, textTransform: 'uppercase', letterSpacing: 1 }}>Results for chapter</Text>
-                <Pressable onPress={() => setSelectedChapterId(null)}><Text style={{ fontSize: 10, fontWeight: '700', color: colors.primary }}>Clear Selection</Text></Pressable>
-              </View>
-            )}
+            {/* Clear selection header removed to match web inline flow */}
           </View>
         )}
 
@@ -326,33 +370,33 @@ export default function TestsIndexScreen() {
         ) : (
           <View style={{ gap: 10 }}>
             {activeMainTab === 'all' && !search && (
-               <MotiView from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }}>
-                 <Pressable onPress={() => router.push('/(auth)/test/custom')} style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}>
-                   <View style={{ width: '100%', borderRadius: 16, borderWidth: 2, borderColor: colors.primary + '66', backgroundColor: colors.primary + '0D', padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                     <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: colors.primary + '26', alignItems: 'center', justifyContent: 'center' }}>
-                       <Zap size={20} color={colors.primary} />
-                     </View>
-                     <View style={{ flex: 1 }}>
-                       <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground }}>Custom Test Generator</Text>
-                       <Text style={{ fontSize: 12, color: colors.mutedForeground, marginTop: 2 }}>Pick any chapter & subtopics from 34K+ questions</Text>
-                     </View>
-                     <ChevronRight size={20} color={colors.primary} />
-                   </View>
-                 </Pressable>
-               </MotiView>
+              <MotiView from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }}>
+                <Pressable onPress={() => router.push('/(auth)/test/custom')} style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}>
+                  <View style={{ width: '100%', borderRadius: 22, borderWidth: 2, borderColor: colors.primary + '66', backgroundColor: colors.primary + '0D', padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.primary + '26', alignItems: 'center', justifyContent: 'center' }}>
+                      <Zap size={20} color={colors.primary} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground, letterSpacing: 0.5 }}>Custom Test Generator</Text>
+                      <Text style={{ fontSize: 12, color: colors.mutedForeground, marginTop: 2 }}>Pick any chapter & subtopics from 34K+ questions</Text>
+                    </View>
+                    <ChevronRight size={20} color={colors.primary} />
+                  </View>
+                </Pressable>
+              </MotiView>
             )}
 
-            {seriesOptions.map(([series, count], idx) => {
+            {activeMainTab === 'all' && seriesOptions.map(([series, count], idx) => {
               const IconComp = seriesIcons[series] || FileText;
               return (
                 <MotiView key={series} from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }} transition={{ delay: idx * 0.04 }}>
                   <Pressable onPress={() => router.push(`/(auth)/tests/${encodeURIComponent(series)}` as any)} style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}>
-                    <View style={{ width: '100%', borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                      <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: colors.primary + '1A', alignItems: 'center', justifyContent: 'center' }}>
+                    <View style={{ width: '100%', borderRadius: 22, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, padding: 18, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                      <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.primary + '1A', alignItems: 'center', justifyContent: 'center' }}>
                         <IconComp size={20} color={colors.primary} />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground }}>{prettySeriesLabel(series)}</Text>
+                        <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground, letterSpacing: 0.3 }}>{prettySeriesLabel(series)}</Text>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                             <FileText size={12} color={colors.primary} />
