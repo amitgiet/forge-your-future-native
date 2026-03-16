@@ -37,7 +37,7 @@ export interface QuestionData {
 
 interface QuestionRendererProps {
   question: QuestionData;
-  onAnswer?: (answer: string | number | null) => void;
+  onAnswer?: (answer: string | number | null | [number, number][]) => void;
   showResult?: boolean;
   disabled?: boolean;
 }

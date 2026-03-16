@@ -17,8 +17,8 @@ export const Card = ({ children, style, elevated }: CardProps) => {
       style={[
         {
           backgroundColor: elevated ? colors.cardElevated : colors.card,
-          borderRadius: 12,
-          padding: 20,
+          borderRadius: 15,
+          padding: 16,
           borderWidth: 1,
           borderColor: colors.border,
           ...shadows.card,

@@ -11,10 +11,10 @@ export const spacing = {
 };
 
 export const radii = {
-  sm: 12,   // ~0.75rem
-  md: 16,   // 1rem  — matches web --radius
-  lg: 20,   // 1.25rem
-  xl: 24,   // 1.5rem
-  '2xl': 32,
+  sm: 15,   // ~0.93rem
+  md: 19,   // 1.18rem
+  lg: 23,   // 1.43rem
+  xl: 27,   // 1.68rem
+  '2xl': 35,
   full: 9999,
 };
