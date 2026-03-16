@@ -14,7 +14,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.neetforge.app"
+      "bundleIdentifier": "com.neetforge.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -36,7 +39,14 @@
         {
           "backgroundColor": "#0080ff"
         }
-      ]
-    ]
+      ],
+      "expo-web-browser"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "ebc34388-90c3-4f85-ab14-408e7912c124"
+      }
+    }
   }
 }

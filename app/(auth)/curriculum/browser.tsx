@@ -1,12 +1,14 @@
 import React, { useMemo, useState, useRef } from 'react';
-import { View, Text, ScrollView, Pressable, RefreshControl, Modal, Dimensions, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, Pressable, RefreshControl, Modal, Dimensions, Alert, ActivityIndicator, Linking } from 'react-native';
+import { WebView } from 'react-native-webview';
+import { Audio } from 'expo-av';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ArrowLeft, BookOpen, ChevronRight, Atom, FlaskConical, Leaf,
-  Trophy, CircleDashed, RotateCcw, Play, GraduationCap, Star,
+  Trophy, CircleDashed, RotateCcw, RotateCw, Play, Pause, GraduationCap, Star,
   X, Info, FileText, Headphones, ImageIcon, Map, BarChart3,
-  ThumbsUp, ThumbsDown, CheckCircle2
+  ThumbsUp, ThumbsDown, CheckCircle2, ExternalLink, ChevronDown, ChevronUp
 } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import apiService from '@/lib/apiService';
@@ -93,6 +95,210 @@ const SUBJECT_META: Record<SubjectKey, { label: string; icon: any; tint: string;
   chemistry: { label: 'Chemistry', icon: FlaskConical, tint: '#f59e0b', grad: ['rgba(245, 158, 11, 0.2)', 'rgba(245, 158, 11, 0.05)'] },
   physics: { label: 'Physics', icon: Atom, tint: '#3b82f6', grad: ['rgba(59, 130, 246, 0.2)', 'rgba(59, 130, 246, 0.05)'] },
 };
+
+// ─── URL helpers (mirrors web) ─────────────────────────────────────────────
+const extractDriveFileId = (url: string): string | null => {
+  if (!url) return null;
+  const byQuery = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (byQuery?.[1]) return byQuery[1];
+  const byPath = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  return byPath?.[1] ?? null;
+};
+
+const toEmbedDriveUrl = (raw: string): string => {
+  if (!raw) return raw;
+  if (/google\.com/i.test(raw)) {
+    const id = extractDriveFileId(raw);
+    if (id) return `https://drive.google.com/file/d/${id}/preview?rm=minimal`;
+  }
+  return raw;
+};
+
+const getYouTubeEmbedUrl = (url: string): string | null => {
+  const m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s?#]+)/);
+  return m ? `https://www.youtube.com/embed/${m[1]}?rel=0` : null;
+};
+
+// ─── Reaction Row ──────────────────────────────────────────────────────────
+interface ReactionRowProps {
+  reaction: { likes: number; dislikes: number; userReaction: 'like' | 'dislike' | 'none' };
+  onLike: () => void;
+  onDislike: () => void;
+  dark?: boolean;
+}
+const ReactionRow = ({ reaction, onLike, onDislike, dark }: ReactionRowProps) => {
+  const likeColor  = reaction.userReaction === 'like'    ? '#6a7ef5' : (dark ? 'rgba(255,255,255,0.4)' : '#888');
+  const dislikeColor = reaction.userReaction === 'dislike' ? '#fb7185' : (dark ? 'rgba(255,255,255,0.4)' : '#888');
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 24, paddingVertical: 4 }}>
+      <Pressable onPress={onLike} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <ThumbsUp size={22} color={likeColor} fill={reaction.userReaction === 'like' ? likeColor : 'none'} />
+        <Text style={{ fontSize: 14, fontWeight: '600', color: likeColor }}>{reaction.likes}</Text>
+      </Pressable>
+      <Pressable onPress={onDislike} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <ThumbsDown size={22} color={dislikeColor} fill={reaction.userReaction === 'dislike' ? dislikeColor : 'none'} />
+        <Text style={{ fontSize: 14, fontWeight: '600', color: dislikeColor }}>{reaction.dislikes}</Text>
+      </Pressable>
+    </View>
+  );
+};
+
+// ─── Native Audio Player ───────────────────────────────────────────────────
+const NativeAudioPlayer = ({ src }: { src: string }) => {
+  const [sound, setSound] = React.useState<Audio.Sound | null>(null);
+  const [isPlaying, setIsPlaying] = React.useState(false);
+  const [position, setPosition] = React.useState(0);
+  const [duration, setDuration]  = React.useState(0);
+  const [rate, setRate]          = React.useState(1);
+
+  React.useEffect(() => {
+    let s: Audio.Sound | null = null;
+    const load = async () => {
+      await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
+      const { sound: loaded } = await Audio.Sound.createAsync(
+        { uri: src },
+        { shouldPlay: false },
+        (status) => {
+          if (status.isLoaded) {
+            setPosition(Math.floor((status.positionMillis || 0) / 1000));
+            setDuration(Math.floor((status.durationMillis || 0) / 1000));
+            setIsPlaying(status.isPlaying);
+          }
+        }
+      );
+      s = loaded;
+      setSound(loaded);
+    };
+    load().catch(() => {});
+    return () => { s?.unloadAsync().catch(() => {}); };
+  }, [src]);
+
+  const toggle  = async () => {
+    if (!sound) return;
+    if (isPlaying) { await sound.pauseAsync(); } else { await sound.playAsync(); }
+  };
+  const seekBy = async (delta: number) => {
+    if (!sound) return;
+    await sound.setPositionAsync(Math.max(0, Math.min(duration * 1000, (position + delta) * 1000)));
+  };
+  const cycleRate = async () => {
+    if (!sound) return;
+    const rates = [1, 1.25, 1.5, 2];
+    const next  = rates[(rates.indexOf(rate) + 1) % rates.length];
+    await sound.setRateAsync(next, true);
+    setRate(next);
+  };
+  const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+  const prog = duration > 0 ? (position / duration) * 100 : 0;
+
+  // Animated wave bars
+  const bars = Array.from({ length: 24 }, (_, i) => {
+    const h = 8 + Math.abs(Math.sin(i * 0.7 + (isPlaying ? Date.now() / 500 : 0))) * 40;
+    return h;
+  });
+
+  return (
+    <View style={{ flex: 1, backgroundColor: '#0d0d1e', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+      {/* Waveform visualizer */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, height: 60, marginBottom: 32 }}>
+        {bars.map((h, i) => (
+          <View key={i} style={{
+            width: 3, height: h,
+            borderRadius: 2,
+            backgroundColor: i % 3 === 0 ? '#6a7ef5' : i % 3 === 1 ? '#00c896' : '#9bb0ff',
+            opacity: isPlaying ? 1 : 0.4,
+          }} />
+        ))}
+      </View>
+
+      {/* Progress bar */}
+      <View style={{ width: '100%', marginBottom: 8 }}>
+        <View style={{ height: 4, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 2, overflow: 'hidden' }}>
+          <View style={{ width: `${prog}%`, height: '100%', backgroundColor: '#6a7ef5', borderRadius: 2 }} />
+        </View>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
+          <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>{fmt(position)}</Text>
+          <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>{fmt(duration)}</Text>
+        </View>
+      </View>
+
+      {/* Controls */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 32, marginTop: 16 }}>
+        <Pressable onPress={() => seekBy(-10)} style={{ alignItems: 'center', gap: 2 }}>
+          <RotateCcw size={24} color="#6a7ef5" />
+          <Text style={{ fontSize: 9, color: '#6a7ef5', fontWeight: '700' }}>10</Text>
+        </Pressable>
+        <Pressable onPress={toggle} style={{
+          width: 64, height: 64, borderRadius: 32,
+          backgroundColor: '#6a7ef5', alignItems: 'center', justifyContent: 'center',
+        }}>
+          {isPlaying
+            ? <Pause size={28} color="#fff" fill="#fff" />
+            : <Play  size={28} color="#fff" fill="#fff" style={{ marginLeft: 2 }} />}
+        </Pressable>
+        <Pressable onPress={() => seekBy(10)} style={{ alignItems: 'center', gap: 2 }}>
+          <RotateCw size={24} color="#6a7ef5" />
+          <Text style={{ fontSize: 9, color: '#6a7ef5', fontWeight: '700' }}>10</Text>
+        </Pressable>
+      </View>
+      <Pressable onPress={cycleRate} style={{ marginTop: 20 }}>
+        <Text style={{ fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.55)' }}>{rate}x</Text>
+      </Pressable>
+    </View>
+  );
+};
+
+// ─── Mind Map tree renderer ────────────────────────────────────────────────
+const MindMapNode = ({ node, depth = 0, colors }: { node: any; depth?: number; colors: any }) => {
+  const [open, setOpen] = React.useState(depth < 2);
+  const children = node.children || node.sub || node.subtopics || [];
+  const label    = String(node.label || node.name || node.title || node.text || JSON.stringify(node));
+  const hasKids  = children.length > 0;
+
+  return (
+    <View style={{ marginLeft: depth * 16 }}>
+      <Pressable
+        onPress={() => hasKids && setOpen(!open)}
+        style={{
+          flexDirection: 'row', alignItems: 'center', gap: 8,
+          paddingVertical: 8, paddingHorizontal: 12,
+          marginVertical: 2, borderRadius: 10,
+          backgroundColor: depth === 0 ? colors.primary + '1A' : depth === 1 ? colors.card : 'transparent',
+          borderWidth: depth <= 1 ? 1 : 0,
+          borderColor: depth === 0 ? colors.primary + '33' : colors.border,
+        }}
+      >
+        {hasKids && (
+          open ? <ChevronDown size={14} color={colors.mutedForeground} /> : <ChevronUp size={14} color={colors.mutedForeground} />
+        )}
+        <Text style={{
+          fontSize: depth === 0 ? 15 : depth === 1 ? 13 : 12,
+          fontWeight: depth <= 1 ? '700' : '500',
+          color: depth === 0 ? colors.primary : colors.foreground,
+          flex: 1,
+        }}>
+          {label}
+        </Text>
+      </Pressable>
+      {open && hasKids && children.map((child: any, i: number) => (
+        <MindMapNode key={i} node={child} depth={depth + 1} colors={colors} />
+      ))}
+    </View>
+  );
+};
+
+const NativeMindMap = ({ data, colors }: { data: any; colors: any }) => {
+  if (!data) return null;
+  // Normalise: the mindmap data can be a raw object or an array of nodes
+  const nodes: any[] = Array.isArray(data) ? data : (data.children || data.nodes || [data]);
+  return (
+    <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+      {nodes.map((n: any, i: number) => <MindMapNode key={i} node={n} depth={0} colors={colors} />)}
+    </ScrollView>
+  );
+};
+
+// ─── Per-resource viewer ──────────────────────────────────────────────────
 
 export default function CurriculumBrowserScreen() {
   const router = useRouter();
@@ -704,14 +910,255 @@ export default function CurriculumBrowserScreen() {
                 </ScrollView>
               ) : (
                 <View style={{ flex: 1 }}>
-                  <View style={{ flex: 1, padding: 24, justifyContent: 'center', alignItems: 'center' }}>
-                    <Text style={{ color: colors.mutedForeground, textAlign: 'center' }}>
-                      Resource: {toppersPreviewResource.toUpperCase()} Rendering
-                    </Text>
-                    <Text style={{ color: colors.mutedForeground, textAlign: 'center', fontSize: 12, marginTop: 8 }}>
-                      Native implementation for specific viewers following soon.
-                    </Text>
-                  </View>
+                  {(() => {
+                    if (!toppersEssentials || !toppersPreviewResource) return null;
+                    const te = toppersEssentials;
+                    const key = toppersPreviewResource;
+                    const reaction = chapterReactions[key] || { likes: 0, dislikes: 0, userReaction: 'none' as const };
+                    const toggleReaction = (rt: ResourceKey, r: 'like' | 'dislike') => {
+                      const cur = chapterReactions[rt] || { likes: 0, dislikes: 0, userReaction: 'none' as const };
+                      const wasThis = cur.userReaction === r;
+                      setChapterReactions(prev => ({
+                        ...prev,
+                        [rt]: {
+                          likes:   r === 'like'    ? cur.likes    + (wasThis ? -1 : 1) : cur.likes    - (cur.userReaction === 'like'    ? 1 : 0),
+                          dislikes:r === 'dislike' ? cur.dislikes + (wasThis ? -1 : 1) : cur.dislikes - (cur.userReaction === 'dislike' ? 1 : 0),
+                          userReaction: wasThis ? 'none' : r,
+                        }
+                      }));
+                    };
+
+                    // ── VIDEO ──────────────────────────────────────────────
+                    if (key === 'video' && te.video?.url) {
+                      const ytUrl = getYouTubeEmbedUrl(te.video.url);
+                      const driveUrl = ytUrl ? null : toEmbedDriveUrl(te.video.url);
+                      const embedUrl = ytUrl || driveUrl;
+                      return (
+                        <View style={{ flex: 1, backgroundColor: '#1c1c1e' }}>
+                          {/* 16:9 video embed */}
+                          <View style={{ width: '100%', aspectRatio: 16 / 9, backgroundColor: '#000' }}>
+                            {embedUrl ? (
+                              <WebView
+                                source={{ uri: embedUrl }}
+                                style={{ flex: 1 }}
+                                allowsFullscreenVideo
+                                mediaPlaybackRequiresUserAction={false}
+                              />
+                            ) : (
+                              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                                <Text style={{ color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>No video available</Text>
+                              </View>
+                            )}
+                          </View>
+                          {/* Metadata + reactions */}
+                          <View style={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 12 }}>
+                            <Text style={{ fontSize: 18, fontWeight: '700', color: '#fff', lineHeight: 24 }}>
+                              {te.video.title || 'Video Lecture'}
+                            </Text>
+                            {te.video.time && (
+                              <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', marginTop: 4 }}>
+                                {te.video.time}
+                              </Text>
+                            )}
+                            <View style={{ marginTop: 16 }}>
+                              <ReactionRow
+                                reaction={reaction}
+                                onLike={() => toggleReaction(key, 'like')}
+                                onDislike={() => toggleReaction(key, 'dislike')}
+                                dark
+                              />
+                            </View>
+                          </View>
+                        </View>
+                      );
+                    }
+
+                    // ── AUDIO (Podcast) ────────────────────────────────────
+                    if (key === 'audio' && te.audio) {
+                      const isDirect = /\.(mp3|m4a|ogg|wav|aac)$/i.test(te.audio);
+                      return (
+                        <View style={{ flex: 1, backgroundColor: '#0d0d1e' }}>
+                          {isDirect ? (
+                            <NativeAudioPlayer src={te.audio} />
+                          ) : (
+                            // Fall back to WebView for Google Drive audio
+                            <WebView source={{ uri: toEmbedDriveUrl(te.audio) }} style={{ flex: 1 }} />
+                          )}
+                          {/* Podcast info & reactions */}
+                          <View style={{
+                            paddingHorizontal: 20, paddingVertical: 14,
+                            borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)',
+                            backgroundColor: 'rgba(0,0,0,0.5)',
+                          }}>
+                            <View style={{ alignItems: 'center', gap: 8 }}>
+                              <View style={{ padding: 10, borderRadius: 999, backgroundColor: '#6a7ef533' }}>
+                                <Headphones size={22} color="#6a7ef5" />
+                              </View>
+                              <Text style={{ fontSize: 16, fontWeight: '700', color: '#fff' }}>Podcast Episode</Text>
+                              <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', textAlign: 'center' }}>
+                                Listen to the chapter audio summary
+                              </Text>
+                            </View>
+                            <View style={{ alignItems: 'center', marginTop: 12 }}>
+                              <ReactionRow
+                                reaction={reaction}
+                                onLike={() => toggleReaction(key, 'like')}
+                                onDislike={() => toggleReaction(key, 'dislike')}
+                                dark
+                              />
+                            </View>
+                          </View>
+                        </View>
+                      );
+                    }
+
+                    // ── SLIDES ─────────────────────────────────────────────
+                    if (key === 'slides' && te.slidesdeck?.url) {
+                      return (
+                        <View style={{ flex: 1 }}>
+                          <WebView
+                            source={{ uri: toEmbedDriveUrl(te.slidesdeck.url) }}
+                            style={{ flex: 1 }}
+                            startInLoadingState
+                          />
+                          <View style={{
+                            flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                            paddingHorizontal: 16, paddingVertical: 12,
+                            borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.background
+                          }}>
+                            <View>
+                              <Text style={{ fontSize: 13, fontWeight: '600', color: colors.foreground }}>
+                                {te.slidesdeck.title || 'Slides'}
+                              </Text>
+                              <Text style={{ fontSize: 10, color: colors.mutedForeground }}>Presentation</Text>
+                            </View>
+                            <ReactionRow
+                              reaction={reaction}
+                              onLike={() => toggleReaction(key, 'like')}
+                              onDislike={() => toggleReaction(key, 'dislike')}
+                            />
+                          </View>
+                        </View>
+                      );
+                    }
+
+                    // ── MIND MAP ───────────────────────────────────────────
+                    if (key === 'mindmap' && te.mindmap) {
+                      return (
+                        <View style={{ flex: 1, backgroundColor: colors.background }}>
+                          <NativeMindMap data={te.mindmap} colors={colors} />
+                          <View style={{
+                            flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                            paddingHorizontal: 16, paddingVertical: 12,
+                            borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.background
+                          }}>
+                            <View>
+                              <Text style={{ fontSize: 13, fontWeight: '600', color: colors.foreground }}>Mind Map</Text>
+                              <Text style={{ fontSize: 10, color: colors.mutedForeground }}>Visual summary</Text>
+                            </View>
+                            <ReactionRow
+                              reaction={reaction}
+                              onLike={() => toggleReaction(key, 'like')}
+                              onDislike={() => toggleReaction(key, 'dislike')}
+                            />
+                          </View>
+                        </View>
+                      );
+                    }
+
+                    // ── INFOGRAPHIC ────────────────────────────────────────
+                    if (key === 'infographic' && te.infographic) {
+                      return (
+                        <View style={{ flex: 1 }}>
+                          <WebView
+                            source={{ uri: toEmbedDriveUrl(te.infographic) }}
+                            style={{ flex: 1 }}
+                            startInLoadingState
+                          />
+                          <View style={{
+                            flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                            paddingHorizontal: 16, paddingVertical: 12,
+                            borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.background
+                          }}>
+                            <View>
+                              <Text style={{ fontSize: 13, fontWeight: '600', color: colors.foreground }}>Infographic</Text>
+                              <Text style={{ fontSize: 10, color: colors.mutedForeground }}>Chapter visual</Text>
+                            </View>
+                            <ReactionRow
+                              reaction={reaction}
+                              onLike={() => toggleReaction(key, 'like')}
+                              onDislike={() => toggleReaction(key, 'dislike')}
+                            />
+                          </View>
+                        </View>
+                      );
+                    }
+
+                    // ── QUICK REVISION (Report) ────────────────────────────
+                    if (key === 'report' && te.report) {
+                      return (
+                        <View style={{ flex: 1 }}>
+                          <WebView
+                            source={{ uri: toEmbedDriveUrl(te.report) }}
+                            style={{ flex: 1 }}
+                            startInLoadingState
+                          />
+                          <View style={{
+                            flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                            paddingHorizontal: 16, paddingVertical: 12,
+                            borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.background
+                          }}>
+                            <View>
+                              <Text style={{ fontSize: 13, fontWeight: '600', color: colors.foreground }}>Quick Revision</Text>
+                              <Text style={{ fontSize: 10, color: colors.mutedForeground }}>Chapter Report</Text>
+                            </View>
+                            <ReactionRow
+                              reaction={reaction}
+                              onLike={() => toggleReaction(key, 'like')}
+                              onDislike={() => toggleReaction(key, 'dislike')}
+                            />
+                          </View>
+                        </View>
+                      );
+                    }
+
+                    // ── FLASHCARDS ─────────────────────────────────────────
+                    if (key === 'flashcards' && te.flashcards) {
+                      return (
+                        <View style={{ flex: 1 }}>
+                          <WebView
+                            source={{ uri: toEmbedDriveUrl(te.flashcards) }}
+                            style={{ flex: 1 }}
+                            startInLoadingState
+                          />
+                          <View style={{
+                            flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                            paddingHorizontal: 16, paddingVertical: 12,
+                            borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.background
+                          }}>
+                            <View>
+                              <Text style={{ fontSize: 13, fontWeight: '600', color: colors.foreground }}>Flashcards</Text>
+                              <Text style={{ fontSize: 10, color: colors.mutedForeground }}>Study cards</Text>
+                            </View>
+                            <ReactionRow
+                              reaction={reaction}
+                              onLike={() => toggleReaction(key, 'like')}
+                              onDislike={() => toggleReaction(key, 'dislike')}
+                            />
+                          </View>
+                        </View>
+                      );
+                    }
+
+                    // ── Fallback ───────────────────────────────────────────
+                    return (
+                      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+                        <Text style={{ color: colors.mutedForeground, textAlign: 'center' }}>
+                          This resource is not available yet.
+                        </Text>
+                      </View>
+                    );
+                  })()}
                 </View>
               )}
             </View>

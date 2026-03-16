@@ -13,7 +13,7 @@ import { Separator } from '@/components/ui/Separator';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { login, demoLogin } = useAuth();
+  const { login } = useAuth();
   const { colors } = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -145,18 +145,6 @@ export default function LoginScreen() {
               </Button>
             </View>
 
-            {/* Demo */}
-            <Separator style={{ marginVertical: 16 }} />
-
-            <Button variant="outline" onPress={demoLogin}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Zap size={16} color={colors.foreground} />
-                <Text style={{ fontSize: 16, fontWeight: '600', color: colors.foreground }}>
-                  Enter Demo Mode
-                </Text>
-                <ArrowRight size={16} color={colors.foreground} />
-              </View>
-            </Button>
 
             <View style={{ marginTop: 16, alignItems: 'center' }}>
               <Text style={{ fontSize: 14, color: colors.mutedForeground, fontFamily: 'Inter_400Regular' }}>
