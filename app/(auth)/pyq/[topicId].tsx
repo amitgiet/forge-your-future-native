@@ -154,12 +154,12 @@ export default function PYQTopicViewerScreen() {
   if (error || !topic) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center', padding: 16 }}>
-        <View style={{ 
-          backgroundColor: colors.card, 
-          borderWidth: 1, 
-          borderColor: colors.border, 
-          borderRadius: 12, 
-          padding: 24, 
+        <View style={{
+          backgroundColor: colors.card,
+          borderWidth: 1,
+          borderColor: colors.border,
+          borderRadius: 12,
+          padding: 24,
           alignItems: 'center',
           maxWidth: 384,
           width: '100%',
@@ -186,7 +186,7 @@ export default function PYQTopicViewerScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       {/* Sticky Header */}
-      <View style={{ 
+      <View style={{
         paddingTop: insets.top,
         backgroundColor: colors.card + 'F2', // 95% opacity
         borderBottomWidth: 1,
@@ -253,11 +253,11 @@ export default function PYQTopicViewerScreen() {
             source={{ html: iframeHtml, baseUrl: proxiedUrl }}
             originWhitelist={['*']}
             onLoadEnd={() => { setIframeLoaded(true); setIframeError(null); }}
-            onError={(syntheticEvent) => { 
+            onError={(syntheticEvent) => {
               const { nativeEvent } = syntheticEvent;
               console.error('WebView error: ', nativeEvent);
-              setIframeLoaded(true); 
-              setIframeError('Could not load content. Please open in a new tab.'); 
+              setIframeLoaded(true);
+              setIframeError('Could not load content. Please open in a new tab.');
             }}
             style={{ flex: 1, backgroundColor: 'transparent', minHeight: 400 }}
             containerStyle={{ flex: 1 }}

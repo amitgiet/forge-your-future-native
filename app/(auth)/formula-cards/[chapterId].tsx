@@ -129,7 +129,7 @@ export default function ChapterFormulaCardsScreen() {
               const percentMemorized = cardCount > 0 ? (stats.memorized / cardCount) * 100 : 0;
               return (
                 <Pressable key={`${topicTitle}-${idx}`} onPress={() => openCardViewer(topicTitle)} style={{ width: '48%', marginBottom: 10, backgroundColor: colors.card, borderRadius: 12, borderWidth: 1, borderColor: colors.border }}>
-                  <View style={{ height: 80, backgroundColor: colors.mutedBackground, justifyContent: 'center', alignItems: 'center' }}><BookOpen size={26} color={colors.primary} /></View>
+                  <View style={{ height: 80, backgroundColor: colors.muted, justifyContent: 'center', alignItems: 'center' }}><BookOpen size={26} color={colors.primary} /></View>
                   <View style={{ padding: 8 }}>
                     <Text style={{ fontSize: 12, fontWeight: '700', color: colors.foreground, lineHeight: 16 }} numberOfLines={2}>{topicTitle}</Text>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 7 }}>

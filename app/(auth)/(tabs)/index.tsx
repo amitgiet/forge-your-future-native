@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Pressable, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, Pressable, RefreshControl, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MotiView } from 'moti';
 import {
@@ -18,6 +18,7 @@ import DailyChallengeCard from '@/components/DailyChallengeCard';
 import ActiveChallenges from '@/components/ActiveChallenges';
 import RevisionWidget from '@/components/RevisionWidget';
 import { gradients, gradientProps } from '@/theme/gradients';
+import { GlassCard } from '@/components/ui/GlassCard';
 
 // Matches web TopicSummary interface
 interface TopicSummary {
@@ -55,6 +56,9 @@ export default function DashboardScreen() {
   const dispatch = useAppDispatch();
   const { dueQuestions } = useAppSelector((state) => state.neuronz);
   const insets = useSafeAreaInsets();
+  const { width: SCREEN_WIDTH } = Dimensions.get('window');
+  const ITEM_MARGIN = 12;
+  const ITEM_WIDTH = (SCREEN_WIDTH - 32 - (ITEM_MARGIN * 2)) / 3;
 
   const [topicSummary, setTopicSummary] = useState<TopicSummary[]>([]);
   const [userRank, setUserRank] = useState<any>(null);
@@ -337,29 +341,72 @@ export default function DashboardScreen() {
             Quick Actions
           </Text>
         </View>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-          {quickActions.map((action) => (
+        <View
+          style={{
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            width: '100%',
+          }}
+        >
+          {quickActions.map((action, index) => (
             <Pressable
               key={action.label}
               onPress={() => router.push(action.path as any)}
               style={({ pressed }) => ({
-                width: '30%',
-                backgroundColor: colors.card,
-                borderRadius: 20,
-                borderWidth: 1,
-                borderColor: colors.border,
-                paddingVertical: 16,
-                alignItems: 'center',
-                gap: 8,
-                opacity: pressed ? 0.8 : 1,
-                ...shadows.card,
+                width: ITEM_WIDTH,
+                marginBottom: ITEM_MARGIN,
+                marginRight: (index + 1) % 3 === 0 ? 0 : ITEM_MARGIN,
+                opacity: pressed ? 0.7 : 1,
               })}
             >
-              <View style={{ width: 38, height: 38, borderRadius: 22, backgroundColor: action.color + '20', alignItems: 'center', justifyContent: 'center' }}>
-                <action.Icon size={20} color={action.color} />
-              </View>
-              <Text style={{ fontSize: 14, fontWeight: '600', color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>{action.label}</Text>
-              <Text style={{ fontSize: 11, color: colors.mutedForeground, fontFamily: 'Inter_400Regular' }}>{action.sub}</Text>
+              <GlassCard
+                style={{
+                  alignItems: 'center',
+                  width: '100%',
+                  justifyContent: 'center',
+                  minHeight: 110,
+                }}
+              >
+                <View
+                  style={{
+                    width: 42,
+                    height: 42,
+                    borderRadius: 21,
+                    backgroundColor: action.color + '15',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: 8,
+                  }}
+                >
+                  <action.Icon size={18} color={action.color} />
+                </View>
+
+                <Text
+                  numberOfLines={1}
+                  style={{
+                    fontSize: 13,
+                    fontWeight: '700',
+                    color: colors.foreground,
+                    fontFamily: 'Inter_700Bold',
+                    textAlign: 'center',
+                  }}
+                >
+                  {action.label}
+                </Text>
+
+                <Text
+                  numberOfLines={1}
+                  style={{
+                    fontSize: 10,
+                    color: colors.mutedForeground,
+                    fontFamily: 'Inter_400Regular',
+                    textAlign: 'center',
+                    marginTop: 2,
+                  }}
+                >
+                  {action.sub}
+                </Text>
+              </GlassCard>
             </Pressable>
           ))}
         </View>
@@ -385,26 +432,31 @@ export default function DashboardScreen() {
               onPress={() => resource.path ? router.push(resource.path as any) : null}
               disabled={!resource.path}
               style={({ pressed }) => ({
-                flexDirection: 'row', alignItems: 'center', gap: 12,
-                backgroundColor: colors.card,
-                borderRadius: 20, borderWidth: 1, borderColor: colors.border,
-                padding: 16,
-                opacity: !resource.path ? 0.5 : pressed ? 0.8 : 1,
-                ...shadows.card,
+                opacity: pressed ? 0.8 : 1,
               })}
             >
-              <View style={{ padding: 12, borderRadius: 14, backgroundColor: resource.color + '20' }}>
-                <resource.Icon size={20} color={resource.color} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
-                  {resource.title}
-                </Text>
-                <Text style={{ fontSize: 11, color: colors.mutedForeground, fontFamily: 'Inter_400Regular', marginTop: 2 }}>
-                  {resource.description}
-                </Text>
-              </View>
-              <ChevronRight size={20} color={colors.mutedForeground} />
+              <GlassCard style={{ flexDirection: 'row', alignItems: 'center', padding: 14 }}>
+                <View style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 14,
+                  backgroundColor: resource.color + '15',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: 14
+                }}>
+                  <resource.Icon size={22} color={resource.color} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold' }}>
+                    {resource.title}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: colors.mutedForeground, fontFamily: 'Inter_400Regular', marginTop: 2 }}>
+                    {resource.description}
+                  </Text>
+                </View>
+                <ChevronRight size={18} color={colors.mutedForeground} />
+              </GlassCard>
             </Pressable>
           ))}
         </View>
