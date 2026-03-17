@@ -181,37 +181,40 @@ export default function PYQIndexScreen() {
                   style={({ pressed }) => [
                     {
                       width: '100%',
-                      padding: 12,
-                      borderRadius: 12,
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 12,
-                      backgroundColor: available ? colors.card : colors.background,
-                      borderWidth: 1,
-                      borderColor: available ? colors.border : colors.muted,
                       opacity: available ? 1 : 0.6,
                     },
                     pressed && available && { opacity: 0.8, transform: [{ scale: 0.98 }] },
                   ]}
                 >
-                  <View style={{ width: 36, height: 36, borderRadius: 8, justifyContent: 'center', alignItems: 'center', backgroundColor: !available ? colors.muted : activeStyles.bg }}>
-                    {!available ? (
-                      <Lock size={16} color={colors.mutedForeground} />
-                    ) : (
-                      <BookOpen size={16} color={activeStyles.icon} />
+                  <GlassCard
+                    small
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 12,
+                      backgroundColor: available ? colors.card : colors.background,
+                      borderColor: available ? colors.border : colors.muted,
+                    }}
+                  >
+                    <View style={{ width: 36, height: 36, borderRadius: 8, justifyContent: 'center', alignItems: 'center', backgroundColor: !available ? colors.muted : activeStyles.bg }}>
+                      {!available ? (
+                        <Lock size={16} color={colors.mutedForeground} />
+                      ) : (
+                        <BookOpen size={16} color={activeStyles.icon} />
+                      )}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 14, fontWeight: '500', color: !available ? colors.mutedForeground : colors.foreground, fontFamily: 'Inter_500Medium' }} numberOfLines={1}>
+                        {topic.topicName}
+                      </Text>
+                      {!available && (
+                        <Text style={{ fontSize: 11, color: colors.mutedForeground }}>Coming soon</Text>
+                      )}
+                    </View>
+                    {available && (
+                      <ChevronRight size={16} color={colors.mutedForeground} />
                     )}
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 14, fontWeight: '500', color: !available ? colors.mutedForeground : colors.foreground, fontFamily: 'Inter_500Medium' }} numberOfLines={1}>
-                      {topic.topicName}
-                    </Text>
-                    {!available && (
-                      <Text style={{ fontSize: 11, color: colors.mutedForeground }}>Coming soon</Text>
-                    )}
-                  </View>
-                  {available && (
-                    <ChevronRight size={16} color={colors.mutedForeground} />
-                  )}
+                  </GlassCard>
                 </Pressable>
               );
             })}

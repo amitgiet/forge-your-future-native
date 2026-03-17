@@ -22,7 +22,7 @@ export const QuizOption = ({
   disabled,
   style,
 }: QuizOptionProps) => {
-  const { colors, isDark } = useTheme();
+  const { colors, shadows } = useTheme();
 
   const stateStyles: Record<OptionState, { bg: string; border: string; labelBg: string; labelText: string }> = {
     default: {
@@ -32,19 +32,19 @@ export const QuizOption = ({
       labelText: colors.mutedForeground,
     },
     selected: {
-      bg: colors.primary + '08',
+      bg: colors.primary + '15',
       border: colors.primary,
       labelBg: colors.primary,
       labelText: '#ffffff',
     },
     correct: {
-      bg: colors.success + '08',
+      bg: colors.success + '15',
       border: colors.success,
       labelBg: colors.success,
       labelText: '#ffffff',
     },
     incorrect: {
-      bg: colors.destructive + '08',
+      bg: colors.destructive + '15',
       border: colors.destructive,
       labelBg: colors.destructive,
       labelText: '#ffffff',
@@ -63,35 +63,38 @@ export const QuizOption = ({
     <Pressable
       onPress={handlePress}
       disabled={disabled}
-      style={({ pressed }) => [
-        {
-          flexDirection: 'row',
-          alignItems: 'center',
-          padding: 16,
-          borderRadius: 12,
-          borderWidth: state === 'default' ? 1 : 2,
-          backgroundColor: s.bg,
-          borderColor: s.border,
-          gap: 12,
-          opacity: pressed ? 0.9 : 1,
-        },
-        style,
-      ]}
+      style={{
+        width: '100%',
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        borderRadius: 14,
+        borderWidth: state === 'default' ? 1 : 2.5,
+        backgroundColor: s.bg,
+        borderColor: s.border,
+        gap: 16,
+        minHeight: 64,
+        // opacity: pressed ? 0.9 : 1,
+        ...style,
+      }}
     >
       <View
         style={{
-          width: 32,
-          height: 32,
-          borderRadius: 8,
+          width: 36,
+          height: 36,
+          borderRadius: 10,
           backgroundColor: s.labelBg,
           alignItems: 'center',
           justifyContent: 'center',
+          borderWidth: state === 'selected' ? 1.5 : 0,
+          borderColor: '#ffffff',
         }}
       >
         <Text
           style={{
             fontSize: 14,
-            fontWeight: '700',
+            fontWeight: '800',
             color: s.labelText,
             fontFamily: 'Inter_700Bold',
           }}
@@ -103,8 +106,9 @@ export const QuizOption = ({
         style={{
           flex: 1,
           fontSize: 15,
-          color: colors.foreground,
-          fontFamily: 'Inter_400Regular',
+          fontWeight: state !== 'default' ? '600' : '500',
+          color: state === 'default' ? colors.foreground : (state === 'selected' ? colors.primary : colors.foreground),
+          fontFamily: state !== 'default' ? 'Inter_600SemiBold' : 'Inter_500Medium',
           lineHeight: 22,
         }}
       >

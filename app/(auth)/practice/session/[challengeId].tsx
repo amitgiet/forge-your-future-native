@@ -194,19 +194,66 @@ export default function PracticeSessionScreen() {
   const handleNtaSubmit = async (data: NTASubmitData) => {
     if (!challengeId) return;
     setSubmitting(true);
+    let correct = 0;
+    let incorrect = 0;
+    const total = questions.length;
+
+    questions.forEach((q: any, i: number) => {
+      const selected = data.answers[i];
+      if (selected === null) return;
+      const correctIdx = getCorrectIndex(q);
+      if (correctIdx !== -1 && selected === correctIdx) correct++;
+      else incorrect++;
+    });
+    const skipped = total - correct - incorrect;
+
+    const reviewQuestions = questions.map((q: any, i: number) => ({
+      _id: q._id || q.id || i,
+      question: q.question || q.text || '',
+      options: Array.isArray(q.options) ? q.options : (q.options || {}),
+      correctAnswer: getCorrectIndex(q),
+      explanation: q.explanation || '',
+      userAnswer: data.answers[i],
+    }));
+
+    const subjectWise = [{
+      subject: run?.subject || 'General',
+      correct,
+      total,
+      accuracy: total > 0 ? (correct / total) * 100 : 0,
+    }];
+
+    const chapterWise = [{
+      chapter: run?.topic || 'General',
+      subject: run?.subject || 'General',
+      correct,
+      total,
+      accuracy: total > 0 ? (correct / total) * 100 : 0,
+    }];
+
     try {
       const res = await apiService.curriculum.submitRun(String(challengeId), {
         answers: data.answers,
         elapsedSeconds: data.timeTaken,
       });
       if (res.data?.success) {
-        const summary = res.data?.data?.summary || {};
         router.replace({
           pathname: '/(auth)/quiz/results',
           params: {
-            score: String(summary.score ?? 0),
-            total: String(summary.total ?? questions.length),
+            title: String(run?.subTopic || run?.topic || 'Curriculum Test'),
+            score: String(correct),
+            correct: String(correct),
+            incorrect: String(incorrect),
+            skipped: String(skipped),
+            total: String(total),
             timeTaken: String(data.timeTaken),
+            totalMarks: String(total * 4),
+            marksObtained: String(correct * 4 - incorrect),
+            subjectWise: JSON.stringify(subjectWise),
+            chapterWise: JSON.stringify(chapterWise),
+            reviewQuestions: JSON.stringify(reviewQuestions),
+            ntaMeta: JSON.stringify(data.meta),
+            weakAreas: JSON.stringify([]),
           },
         } as any);
       }

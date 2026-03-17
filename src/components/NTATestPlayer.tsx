@@ -308,8 +308,8 @@ const NTATestPlayer: React.FC<NTATestPlayerProps> = ({
               <Menu size={16} color={colors.foreground} />
             </Pressable>
             {!readOnly && (
-              <Button variant="destructive" size="sm" onPress={() => setShowSubmitDialog(true)} style={{ height: 32, paddingHorizontal: 12 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Button variant="destructive" size="sm" onPress={() => setShowSubmitDialog(true)} >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#f10505ff', paddingHorizontal: 12, height: 30, borderRadius: 999 }}>
                   <Send size={14} color="#fff" />
                   <Text style={{ fontSize: 12, fontWeight: '700', color: '#fff' }}>Submit</Text>
                 </View>
@@ -511,7 +511,7 @@ const NTATestPlayer: React.FC<NTATestPlayerProps> = ({
                     key={i}
                     onPress={() => selectOption(i)}
                     disabled={readOnly}
-                    style={({ pressed }) => ({
+                    style={{
                       flexDirection: 'row',
                       alignItems: 'flex-start',
                       padding: 14,
@@ -519,8 +519,8 @@ const NTATestPlayer: React.FC<NTATestPlayerProps> = ({
                       borderWidth: 2,
                       borderColor,
                       backgroundColor: bg,
-                      opacity: pressed && !readOnly ? 0.95 : 1,
-                    })}
+                      // opacity: pressed && !readOnly ? 0.95 : 1,
+                    }}
                   >
                     <View
                       style={{
@@ -610,52 +610,115 @@ const NTATestPlayer: React.FC<NTATestPlayerProps> = ({
       </ScrollView>
 
       {/* ═══ BOTTOM CONTROLS ═══ */}
-      <View style={{ padding: 8, paddingBottom: Math.max(insets.bottom, 8), backgroundColor: colors.card, borderTopWidth: 1, borderTopColor: colors.border }}>
-        <View style={{ flexDirection: 'row', gap: 4, marginBottom: 8 }}>
-          <Button variant="outline" size="sm" style={{ flex: 1, height: 32 }} onPress={clearAnswer} disabled={readOnly || curMeta.selectedOption === null}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Eraser size={14} color={readOnly || curMeta.selectedOption === null ? colors.mutedForeground : colors.foreground} />
-              <Text style={{ fontSize: 12, fontWeight: '600', color: readOnly || curMeta.selectedOption === null ? colors.mutedForeground : colors.foreground }}>Clear</Text>
+      <View style={{
+        paddingHorizontal: 16,
+        paddingTop: 12,
+        paddingBottom: Math.max(insets.bottom, 12),
+        backgroundColor: colors.card,
+        borderTopWidth: 1,
+        borderTopColor: colors.border + '33'
+      }}>
+        {/* Row 1: Action buttons */}
+        <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10, alignItems: 'center' }}>
+          <Button
+            variant="ghost"
+            style={{ flex: 1, height: 40, borderRadius: 20, backgroundColor: colors.muted + '1A' }}
+            onPress={clearAnswer}
+            disabled={readOnly || curMeta.selectedOption === null}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Eraser size={14} color={readOnly || curMeta.selectedOption === null ? colors.mutedForeground : colors.mutedForeground} />
+              <Text style={{ fontSize: 13, fontWeight: '600', color: readOnly || curMeta.selectedOption === null ? colors.mutedForeground : colors.mutedForeground }}>Clear</Text>
             </View>
           </Button>
-          <Button variant={isMarked ? 'primary' : 'outline'} size="sm" style={{ flex: 1, height: 32, backgroundColor: isMarked ? colors.secondary : 'transparent' }} onPress={toggleMarkReview} disabled={readOnly}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Flag size={14} color={isMarked ? '#fff' : colors.foreground} />
-              <Text style={{ fontSize: 12, fontWeight: '600', color: isMarked ? '#fff' : colors.foreground }}>{isMarked ? 'Unmark' : 'Review'}</Text>
+
+          <Button
+            variant="ghost"
+            style={{
+              flex: 1.5,
+              height: 40,
+              borderRadius: 20,
+              backgroundColor: isMarked ? '#7c3aed' : colors.muted + '1A'
+            }}
+            onPress={toggleMarkReview}
+            disabled={readOnly}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Flag size={14} color={isMarked ? '#ffffff' : colors.mutedForeground} fill={isMarked ? '#7e4e4eff' : 'none'} />
+              <Text style={{ fontSize: 13, fontWeight: '600', color: isMarked ? '#7e4e4eff' : colors.mutedForeground }}>
+                {isMarked ? 'Unmark' : 'Mark Review'}
+              </Text>
             </View>
           </Button>
-          <Button variant={curMeta.bookmarked ? 'primary' : 'outline'} size="sm" style={{ flex: 1, height: 32, backgroundColor: curMeta.bookmarked ? colors.warning : 'transparent' }} onPress={toggleBookmark}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Star size={14} color={curMeta.bookmarked ? '#fff' : colors.foreground} />
-              <Text style={{ fontSize: 12, fontWeight: '600', color: curMeta.bookmarked ? '#fff' : colors.foreground }}>Bookmark</Text>
-            </View>
-          </Button>
+
+          {/* <Button
+            variant="ghost"
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              backgroundColor: curMeta.bookmarked ? '#f59e0b' : colors.muted + '1A'
+            }}
+            onPress={toggleBookmark}
+          >
+            <Star size={16} color={curMeta.bookmarked ? '#ffffff' : colors.mutedForeground} fill={curMeta.bookmarked ? '#ffffff' : 'none'} />
+          </Button> */}
         </View>
 
-        <View style={{ flexDirection: 'row', gap: 6 }}>
-          <Button variant="outline" size="sm" style={{ width: 40, height: 40 }} onPress={() => goTo(currentQ - 1)} disabled={currentQ === 0}>
-            <ChevronLeft size={16} color={currentQ === 0 ? colors.mutedForeground : colors.foreground} />
+        {/* Row 2: Navigation */}
+        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+          <Button
+            variant="ghost"
+            style={{ width: 35, height: 35, borderRadius: 12, backgroundColor: colors.muted + '1A' }}
+            onPress={() => goTo(currentQ - 1)}
+            disabled={currentQ === 0}
+          >
+            <ChevronLeft size={20} color={currentQ === 0 ? colors.mutedForeground : colors.foreground} />
           </Button>
+
           {!readOnly ? (
-            <>
-              <Button variant="secondary" size="sm" style={{ flex: 1, height: 40 }} onPress={saveAndNext}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: colors.foreground }}>Save & Next</Text>
-                  <ChevronRight size={16} color={colors.foreground} />
-                </View>
-              </Button>
-              <Button size="sm" style={{ flex: 1, height: 40, backgroundColor: colors.secondary }} onPress={markAndNext}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#fff' }}>Mark & Next</Text>
+            <View style={{ flex: 1, flexDirection: 'row', gap: 4 }}>
+              <Button
+                variant="primary"
+                style={{
+                  flex: 1,
+                  height: 30,
+                  borderRadius: 22,
+                  backgroundColor: '#3b82f6' // Vibrant Blue
+                }}
+                onPress={saveAndNext}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, width: '44%', justifyContent: 'center' }}>
+                  <Text style={{ fontSize: 10, fontWeight: '700', color: '#fff' }}>Save & Next</Text>
                   <ChevronRight size={16} color="#fff" />
                 </View>
               </Button>
-            </>
+              <Button
+                variant="secondary"
+                style={{
+                  flex: 1,
+                  height: 30,
+                  borderRadius: 22,
+                  backgroundColor: '#8b5cf6' // Vibrant Violet
+                }}
+                onPress={markAndNext}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, width: '45%', justifyContent: 'center' }}>
+                  <Text style={{ fontSize: 10, fontWeight: '700', color: '#fff' }}>Mark & Next</Text>
+                  <ChevronRight size={16} color="#fff" />
+                </View>
+              </Button>
+            </View>
           ) : (
-            <Button variant="secondary" size="sm" style={{ flex: 1, height: 40 }} onPress={() => goTo(currentQ + 1)} disabled={currentQ >= totalQ - 1}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Text style={{ fontSize: 12, fontWeight: '700', color: colors.foreground }}>Next</Text>
-                <ChevronRight size={16} color={colors.foreground} />
+            <Button
+              variant="primary"
+              style={{ flex: 1, height: 44, borderRadius: 22, backgroundColor: '#3b82f6' }}
+              onPress={() => goTo(currentQ + 1)}
+              disabled={currentQ >= totalQ - 1}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, width: '45%', justifyContent: 'center' }}>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: '#fff' }}>Next Question</Text>
+                <ChevronRight size={18} color="#fff" />
               </View>
             </Button>
           )}
@@ -680,37 +743,61 @@ const NTATestPlayer: React.FC<NTATestPlayerProps> = ({
       <Modal visible={showSubmitDialog} transparent animationType="fade">
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <View style={{ backgroundColor: colors.card, width: '100%', borderRadius: 24, padding: 24 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <AlertTriangle size={24} color={colors.warning} />
-              <Text style={{ fontSize: 18, fontWeight: '700', color: colors.foreground }}>Submit Test?</Text>
-            </View>
-            <Text style={{ fontSize: 14, color: colors.mutedForeground, marginBottom: 20 }}>Are you sure you want to submit? You cannot change answers after submission.</Text>
-
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
-              <View style={{ width: '48%', backgroundColor: colors.success + '1A', padding: 12, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <CheckCircle2 size={16} color={colors.success} />
-                <Text style={{ fontSize: 12, fontWeight: '600', color: colors.success }}>Ans: {stats.answered + stats.answeredMarked}</Text>
+            <View style={{ alignItems: 'center', marginBottom: 20 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                <AlertTriangle size={24} color="#f59e0b" />
+                <Text style={{ fontSize: 20, fontWeight: '700', color: colors.foreground }}>Submit Test?</Text>
               </View>
-              <View style={{ width: '48%', backgroundColor: colors.destructive + '1A', padding: 12, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <X size={16} color={colors.destructive} />
-                <Text style={{ fontSize: 12, fontWeight: '600', color: colors.destructive }}>Unans: {stats.notAnswered}</Text>
-              </View>
-              <View style={{ width: '48%', backgroundColor: colors.secondary + '1A', padding: 12, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Flag size={16} color={colors.secondary} />
-                <Text style={{ fontSize: 12, fontWeight: '600', color: colors.secondary }}>Rev: {stats.markedReview + stats.answeredMarked}</Text>
-              </View>
-              <View style={{ width: '48%', backgroundColor: colors.muted, padding: 12, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Eye size={16} color={colors.mutedForeground} />
-                <Text style={{ fontSize: 12, fontWeight: '600', color: colors.mutedForeground }}>Not Vis: {stats.notVisited}</Text>
-              </View>
+              <Text style={{ fontSize: 15, color: colors.mutedForeground, textAlign: 'center', lineHeight: 22 }}>
+                Are you sure you want to submit? You cannot change answers after submission.
+              </Text>
             </View>
 
-            <View style={{ flexDirection: 'row', gap: 12 }}>
-              <Button variant="outline" style={{ flex: 1 }} onPress={() => setShowSubmitDialog(false)}>
-                <Text style={{ color: colors.foreground }}>Continue</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 32 }}>
+              <View style={{ width: '48%', backgroundColor: '#ecfdf5', borderColor: '#10b98122', borderWidth: 1, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 999, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <CheckCircle2 size={16} color="#10b981" />
+                <Text style={{ fontSize: 13, fontWeight: '600', color: '#065f46' }}>Answered: {stats.answered + stats.answeredMarked}</Text>
+              </View>
+              <View style={{ width: '48%', backgroundColor: '#fef2f2', borderColor: '#ef444422', borderWidth: 1, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 999, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <X size={16} color="#ef4444" />
+                <Text style={{ fontSize: 13, fontWeight: '600', color: '#991b1b' }}>Unanswered: {stats.notAnswered}</Text>
+              </View>
+              <View style={{ width: '48%', backgroundColor: '#f5f3ff', borderColor: '#8b5cf622', borderWidth: 1, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 999, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Flag size={16} color="#8b5cf6" />
+                <Text style={{ fontSize: 13, fontWeight: '600', color: '#5b21b6' }}>Review: {stats.markedReview + stats.answeredMarked}</Text>
+              </View>
+              <View style={{ width: '48%', backgroundColor: '#f8fafc', borderColor: '#64748b22', borderWidth: 1, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 999, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Eye size={16} color="#64748b" />
+                <Text style={{ fontSize: 13, fontWeight: '600', color: '#334155' }}>Not Visited: {stats.notVisited}</Text>
+              </View>
+            </View>
+
+            <View style={{ gap: 12 }}>
+              <Button
+                variant='secondary'
+                onPress={handleSubmit}
+                loading={isSubmitting}
+                style={{
+                  height: 52,
+                  borderRadius: 14,
+                  backgroundColor: '#dc2626',
+                  width: '100%'
+                }}
+              >
+                <Text style={{ color: '#ffffffff', fontWeight: '700', fontSize: 16 }}>Submit Test</Text>
               </Button>
-              <Button variant="destructive" style={{ flex: 1 }} onPress={handleSubmit} loading={isSubmitting}>
-                <Text style={{ color: '#fff', fontWeight: '700' }}>Submit Test</Text>
+              <Button
+                onPress={() => setShowSubmitDialog(false)}
+                style={{
+                  height: 52,
+                  borderRadius: 14,
+                  backgroundColor: '#f8fafc',
+                  borderWidth: 1,
+                  borderColor: '#e2e8f0',
+                  width: '100%'
+                }}
+              >
+                <Text style={{ color: '#ffffffff', fontWeight: '600', fontSize: 16 }}>Continue Test</Text>
               </Button>
             </View>
           </View>

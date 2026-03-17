@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Pressable, RefreshControl, Dimensions } from 'react-native';
+import { View, Text, ScrollView, Pressable, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MotiView } from 'moti';
 import {
@@ -56,9 +56,6 @@ export default function DashboardScreen() {
   const dispatch = useAppDispatch();
   const { dueQuestions } = useAppSelector((state) => state.neuronz);
   const insets = useSafeAreaInsets();
-  const { width: SCREEN_WIDTH } = Dimensions.get('window');
-  const ITEM_MARGIN = 12;
-  const ITEM_WIDTH = (SCREEN_WIDTH - 32 - (ITEM_MARGIN * 2)) / 3;
 
   const [topicSummary, setTopicSummary] = useState<TopicSummary[]>([]);
   const [userRank, setUserRank] = useState<any>(null);
@@ -345,26 +342,28 @@ export default function DashboardScreen() {
           style={{
             flexDirection: 'row',
             flexWrap: 'wrap',
+            gap: 15,
             width: '100%',
           }}
         >
-          {quickActions.map((action, index) => (
+          {quickActions.map((action) => (
             <Pressable
               key={action.label}
               onPress={() => router.push(action.path as any)}
               style={({ pressed }) => ({
-                width: ITEM_WIDTH,
-                marginBottom: ITEM_MARGIN,
-                marginRight: (index + 1) % 3 === 0 ? 0 : ITEM_MARGIN,
+                minWidth: '30.33%',
+                width: '30.33%',
+                paddingHorizontal: 6,
+                marginBottom: 10,
                 opacity: pressed ? 0.7 : 1,
               })}
             >
               <GlassCard
                 style={{
                   alignItems: 'center',
-                  width: '100%',
+                  width: 115,
                   justifyContent: 'center',
-                  minHeight: 110,
+                  minHeight: 120,
                 }}
               >
                 <View

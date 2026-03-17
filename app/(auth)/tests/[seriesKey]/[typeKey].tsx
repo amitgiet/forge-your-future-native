@@ -208,7 +208,7 @@ export default function TestListScreen() {
                     )}
 
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Pressable onPress={() => toggleCompleted(item)} style={({ pressed }) => ({ flex: 1, opacity: pressed ? 0.9 : 1 })}>
+                      <Pressable onPress={() => toggleCompleted(item)} style={({ pressed }) => ({ flex: 1, opacity: pressed ? 0.9 : 1, width: 150 })}>
                         {completed ? (
                           <View style={{ height: 40, borderRadius: 22, backgroundColor: colors.muted, alignItems: 'center', justifyContent: 'center' }}>
                             <Text style={{ fontSize: 12, fontWeight: '600', color: colors.mutedForeground }}>Undo Completion</Text>

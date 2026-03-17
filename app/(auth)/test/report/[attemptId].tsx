@@ -1,8 +1,8 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowLeft, Target, Clock, CheckCircle, XCircle, Home, ChevronDown, ChevronUp, RotateCcw } from 'lucide-react-native';
+import { ArrowLeft, Target, Clock, CheckCircle, XCircle, Home, ChevronDown, ChevronUp, RotateCcw, BookOpen } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import apiService from '@/lib/apiService';
 import { GlassCard } from '@/components/ui/GlassCard';
@@ -55,12 +55,14 @@ export default function TestReportScreen() {
         if (res.data?.success) {
           setReport(res.data.data);
         }
-      } catch {} finally {
+      } catch (err) {
+        console.error('Failed to load report:', err);
+      } finally {
         setLoading(false);
       }
     };
     loadReport();
-  }, []);
+  }, [attemptId]);
 
   const results = report?.results || {};
   const testEntity = report?.testId || report?.test || null;
@@ -103,8 +105,9 @@ export default function TestReportScreen() {
     });
 
     return testQuestions.map((q: any, idx: number) => {
-      const qid = String(q?._id || q?.id || idx);
-      const ans = answerMap.get(qid);
+      const qid = String(q?._id || q?.id || '');
+      const ans = qid ? answerMap.get(qid) : null;
+      
       return {
         key: qid || String(idx),
         question: q?.question || q?.text || '',
@@ -166,28 +169,30 @@ export default function TestReportScreen() {
         contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 20 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Score Circle */}
-        <GlassCard style={{ alignItems: 'center', paddingVertical: 32, marginBottom: 16 }}>
+        {/* Score Card */}
+        <GlassCard style={{ alignItems: 'center', paddingVertical: 32, marginBottom: 16, backgroundColor: colors.primary + '0A' }}>
           <View style={{
-            width: 120, height: 120, borderRadius: 60,
-            borderWidth: 6, borderColor: getScoreColor(),
+            width: 140, height: 140, borderRadius: 70,
+            borderWidth: 8, borderColor: getScoreColor(),
             alignItems: 'center', justifyContent: 'center', marginBottom: 16,
+            backgroundColor: colors.card,
+            shadowColor: getScoreColor(), shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6
           }}>
-            <Text style={{ fontSize: 32, fontWeight: '800', color: getScoreColor(), fontFamily: 'Inter_800ExtraBold' }}>
+            <Text style={{ fontSize: 36, fontWeight: '800', color: getScoreColor(), fontFamily: 'Inter_800ExtraBold' }}>
               {percentage}%
             </Text>
           </View>
-            <Text style={{ fontSize: 20, fontWeight: '700', color: colors.foreground, fontFamily: 'PlusJakartaSans_700Bold' }}>
+            <Text style={{ fontSize: 22, fontWeight: '700', color: colors.foreground, fontFamily: 'PlusJakartaSans_700Bold', textAlign: 'center' }}>
             {testEntity?.title || report?.test?.title || 'Test Report'}
             </Text>
             {score !== undefined && (
-              <Text style={{ fontSize: 14, color: colors.mutedForeground, marginTop: 4 }}>
-              Score: {score}/{results?.totalMarks ?? report?.maxScore ?? total * 4}
+              <Text style={{ fontSize: 16, color: colors.mutedForeground, marginTop: 6, fontWeight: '600' }}>
+              Score: {score} / {results?.totalMarks ?? report?.maxScore ?? total * 4} marks
               </Text>
             )}
         </GlassCard>
 
-        {/* Stats */}
+        {/* Stats Row */}
         <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
           {[
             { icon: CheckCircle, value: String(correct), label: 'Correct', color: colors.success },
@@ -196,11 +201,11 @@ export default function TestReportScreen() {
             { icon: Clock, value: formatTime(timeTaken), label: 'Time', color: colors.warning },
           ].map((stat, i) => (
             <GlassCard key={i} small style={{ flex: 1, alignItems: 'center', gap: 4, paddingVertical: 12 }}>
-              <stat.icon size={18} color={stat.color} />
-              <Text style={{ fontSize: 16, fontWeight: '800', color: stat.color, fontFamily: 'Inter_800ExtraBold' }}>
+              <stat.icon size={20} color={stat.color} />
+              <Text style={{ fontSize: 18, fontWeight: '800', color: stat.color, fontFamily: 'Inter_800ExtraBold' }}>
                 {stat.value}
               </Text>
-              <Text style={{ fontSize: 9, color: colors.mutedForeground, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              <Text style={{ fontSize: 10, color: colors.mutedForeground, textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '700' }}>
                 {stat.label}
               </Text>
             </GlassCard>
@@ -208,160 +213,115 @@ export default function TestReportScreen() {
         </View>
 
         {/* Accuracy Bar */}
-        <GlassCard style={{ marginBottom: 16 }}>
-          <Text style={{ fontSize: 14, fontWeight: '600', color: colors.foreground, marginBottom: 10 }}>Accuracy</Text>
+        <GlassCard style={{ marginBottom: 24 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground }}>Accuracy</Text>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: getScoreColor() }}>{percentage}%</Text>
+          </View>
           <Progress value={percentage} color={getScoreColor()} height={12} />
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
-            <Text style={{ fontSize: 12, color: colors.mutedForeground }}>{correct} correct</Text>
-            <Text style={{ fontSize: 12, fontWeight: '600', color: getScoreColor() }}>{percentage}%</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>
+            <Text style={{ fontSize: 12, color: colors.mutedForeground }}>{correct} out of {total} correct</Text>
           </View>
         </GlassCard>
 
-        {/* Subject Breakdown */}
-        {Array.isArray(results?.subjectWise) && results.subjectWise.length > 0 && (
-          <View style={{ marginBottom: 16 }}>
-            <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>
-              Subject Breakdown
-            </Text>
-            {results.subjectWise.map((row: any, idx: number) => (
-              <GlassCard key={`${row.subject}-${idx}`} style={{ marginBottom: 8 }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: colors.foreground }}>{row.subject}</Text>
-                  <Badge variant={(row.accuracy || 0) >= 60 ? 'success' : 'warning'}>{Math.round(row.accuracy || 0)}%</Badge>
-                </View>
-                <Progress value={row.accuracy || 0} height={6} />
-              </GlassCard>
-            ))}
-          </View>
-        )}
-
         {/* Weak Areas */}
         {weakAreas.length > 0 && (
-          <View style={{ marginBottom: 16 }}>
-            <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>
-              Weak Areas
+          <View style={{ marginBottom: 24 }}>
+            <Text style={{ fontSize: 15, fontWeight: '800', color: colors.foreground, textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 16, marginLeft: 4 }}>
+              Areas for Improvement
             </Text>
             {weakAreas.map((area: any, idx: number) => (
-              <GlassCard key={`${area?.chapter || 'weak'}-${idx}`} style={{ marginBottom: 8 }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 8 }}>
+              <GlassCard key={`${area?.chapter || 'weak'}-${idx}`} style={{ marginBottom: 10, borderLeftWidth: 4, borderLeftColor: colors.destructive }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground }}>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: colors.foreground }}>
                       {area?.chapter || area?.topic || 'Topic'}
                     </Text>
-                    <Text style={{ fontSize: 12, color: colors.mutedForeground, marginTop: 2 }}>
-                      {area?.subject || 'Subject'} - {area?.questionsWrong ?? area?.wrong ?? 0} wrong
+                    <Text style={{ fontSize: 12, color: colors.mutedForeground, marginTop: 4 }}>
+                      {area?.subject || 'Subject'} • {area?.questionsWrong ?? area?.wrong ?? 0} wrong • {Math.round(area?.accuracy || 0)}%
                     </Text>
                   </View>
-                  <Badge variant={(area?.accuracy || 0) < 50 ? 'warning' : 'secondary'}>
-                    {Math.round(area?.accuracy || 0)}%
-                  </Badge>
+                  <Pressable
+                    onPress={() =>
+                      router.push({
+                        pathname: '/(auth)/practice/start',
+                        params: {
+                          subject: String(area?.subject || ''),
+                          topic: String(area?.chapter || area?.topic || ''),
+                        },
+                      } as any)
+                    }
+                    style={{
+                      backgroundColor: colors.primary,
+                      borderRadius: 10,
+                      paddingHorizontal: 14,
+                      paddingVertical: 8,
+                    }}
+                  >
+                    <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>Practice</Text>
+                  </Pressable>
                 </View>
-                <Pressable
-                  onPress={() =>
-                    router.push({
-                      pathname: '/(auth)/practice/start',
-                      params: {
-                        subject: String(area?.subject || ''),
-                        topic: String(area?.chapter || area?.topic || ''),
-                      },
-                    } as any)
-                  }
-                  style={{
-                    alignSelf: 'flex-start',
-                    borderWidth: 1,
-                    borderColor: colors.border,
-                    borderRadius: 8,
-                    backgroundColor: colors.card,
-                    paddingHorizontal: 10,
-                    paddingVertical: 6,
-                  }}
-                >
-                  <Text style={{ color: colors.foreground, fontSize: 11, fontWeight: '700' }}>Fix</Text>
-                </Pressable>
               </GlassCard>
             ))}
           </View>
         )}
 
-        {/* Chapter Breakdown */}
-        {Array.isArray(results?.chapterWise) && results.chapterWise.length > 0 && (
-          <View style={{ marginBottom: 16 }}>
-            <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>
-              Chapter Breakdown
-            </Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {results.chapterWise.map((ch: any, idx: number) => {
-                const accuracy = Number(ch?.accuracy || 0);
-                const tone = accuracy >= 80 ? colors.success : accuracy >= 50 ? colors.warning : colors.destructive;
-                return (
-                  <View
-                    key={`${ch?.chapter || 'chapter'}-${idx}`}
-                    style={{
-                      width: '48%',
-                      borderWidth: 1,
-                      borderColor: colors.border,
-                      borderRadius: 12,
-                      backgroundColor: colors.card,
-                      padding: 10,
-                    }}
-                  >
-                    <Text style={{ color: colors.foreground, fontSize: 12, fontWeight: '700' }} numberOfLines={1}>
-                      {ch?.chapter || 'Chapter'}
-                    </Text>
-                    <Text style={{ color: colors.mutedForeground, fontSize: 11, marginTop: 2 }} numberOfLines={1}>
-                      {ch?.subject || 'Subject'}
-                    </Text>
-                    <View style={{ marginTop: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>
-                        {ch?.correct ?? 0}/{ch?.total ?? 0}
-                      </Text>
-                      <Text style={{ color: tone, fontSize: 12, fontWeight: '700' }}>
-                        {Math.round(accuracy)}%
-                      </Text>
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
-          </View>
-        )}
-
-        {/* Answer Review */}
+        {/* Answer Review Section */}
         {reviewQuestions.length > 0 && (
-          <View style={{ marginBottom: 16 }}>
-            <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>
-              Answer Review
-            </Text>
+          <View style={{ marginBottom: 24 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, paddingHorizontal: 4 }}>
+              <Text style={{ fontSize: 15, fontWeight: '800', color: colors.foreground, textTransform: 'uppercase', letterSpacing: 1.2 }}>
+                Answer Review
+              </Text>
+              <Badge variant="outline">
+                {total} Questions
+              </Badge>
+            </View>
+
             {reviewQuestions.map((item, idx) => {
               const selectedIdx = getAnswerIndex(item.userAnswer);
               const correctIdx = getAnswerIndex(item.correctAnswer);
               const isCorrect = selectedIdx !== null && correctIdx !== null && selectedIdx === correctIdx;
+              const isUnattempted = selectedIdx === null;
               const explanationOpen = !!openExplanations[item.key];
               const hasExplanation = Boolean(item.explanation.trim());
 
               return (
-                <GlassCard key={item.key} style={{ marginBottom: 10 }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
-                    <Text style={{ flex: 1, fontSize: 13, fontWeight: '600', color: colors.foreground, lineHeight: 20 }}>
-                      Q{idx + 1}. {item.question}
-                    </Text>
-                    <Badge variant={isCorrect ? 'success' : 'warning'}>
-                      {isCorrect ? 'Correct' : 'Wrong'}
+                <GlassCard key={item.key} style={{ marginBottom: 16, borderLeftWidth: 4, borderLeftColor: isUnattempted ? colors.mutedForeground : isCorrect ? colors.success : colors.destructive }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 12 }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: colors.primary, textTransform: 'uppercase', marginBottom: 4 }}>
+                        Question {idx + 1} • {item.subject}
+                      </Text>
+                      <Text style={{ fontSize: 14, fontWeight: '600', color: colors.foreground, lineHeight: 22 }}>
+                        {item.question}
+                      </Text>
+                    </View>
+                    <Badge variant={isUnattempted ? 'outline' : isCorrect ? 'success' : 'warning'}>
+                      {isUnattempted ? 'Skipped' : isCorrect ? 'Correct' : 'Incorrect'}
                     </Badge>
                   </View>
 
-                  <View style={{ gap: 8 }}>
+                  <View style={{ gap: 8, marginBottom: 12 }}>
                     {item.options.map((opt, optIdx) => {
                       const isSelected = selectedIdx === optIdx;
                       const isRight = correctIdx === optIdx;
+                      
                       let bg = colors.card;
-                      let border = colors.border;
+                      let borderColor = colors.border;
+                      let badgeBg = colors.muted + '40';
+                      let badgeText = colors.mutedForeground;
+
                       if (isRight) {
-                        bg = colors.success + '12';
-                        border = colors.success + '55';
+                        bg = colors.success + '15';
+                        borderColor = colors.success;
+                        badgeBg = colors.success;
+                        badgeText = '#fff';
                       } else if (isSelected && !isRight) {
-                        bg = colors.destructive + '12';
-                        border = colors.destructive + '55';
+                        bg = colors.destructive + '15';
+                        borderColor = colors.destructive;
+                        badgeBg = colors.destructive;
+                        badgeText = '#fff';
                       }
 
                       return (
@@ -369,36 +329,49 @@ export default function TestReportScreen() {
                           key={`${item.key}-opt-${optIdx}`}
                           style={{
                             borderWidth: 1,
-                            borderColor: border,
+                            borderColor: borderColor,
                             backgroundColor: bg,
-                            borderRadius: 10,
-                            paddingHorizontal: 10,
-                            paddingVertical: 8,
+                            borderRadius: 12,
+                            paddingHorizontal: 12,
+                            paddingVertical: 10,
                             flexDirection: 'row',
                             alignItems: 'center',
-                            gap: 8,
+                            gap: 12,
                           }}
                         >
-                          <Text style={{ fontSize: 12, fontWeight: '700', color: colors.foreground }}>{OPTION_LABELS[optIdx]}.</Text>
-                          <Text style={{ flex: 1, fontSize: 12, color: colors.foreground }}>{opt}</Text>
+                          <View style={{ 
+                            width: 24, height: 24, borderRadius: 12, 
+                            backgroundColor: badgeBg, alignItems: 'center', justifyContent: 'center' 
+                          }}>
+                            <Text style={{ fontSize: 12, fontWeight: '700', color: badgeText }}>
+                              {OPTION_LABELS[optIdx]}
+                            </Text>
+                          </View>
+                          <Text style={{ flex: 1, fontSize: 13, color: colors.foreground }}>{opt}</Text>
                         </View>
                       );
                     })}
                   </View>
 
-                  <View style={{ marginTop: 10, gap: 4 }}>
-                    <Text style={{ fontSize: 12, color: colors.mutedForeground }}>
-                      Your Answer:{' '}
-                      <Text style={{ color: selectedIdx === null ? colors.mutedForeground : isCorrect ? colors.success : colors.destructive, fontWeight: '700' }}>
-                        {selectedIdx === null ? 'Not Attempted' : OPTION_LABELS[selectedIdx] || 'Invalid'}
+                  <View style={{ 
+                    flexDirection: 'row', 
+                    padding: 10, 
+                    backgroundColor: colors.muted + '20', 
+                    borderRadius: 10,
+                    marginBottom: hasExplanation ? 10 : 0
+                  }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 10, color: colors.mutedForeground, textTransform: 'uppercase' }}>Your Answer</Text>
+                      <Text style={{ fontSize: 13, fontWeight: '700', color: isUnattempted ? colors.mutedForeground : isCorrect ? colors.success : colors.destructive }}>
+                        {isUnattempted ? 'Not Attempted' : `Option ${OPTION_LABELS[selectedIdx]}`}
                       </Text>
-                    </Text>
-                    <Text style={{ fontSize: 12, color: colors.mutedForeground }}>
-                      Correct Answer:{' '}
-                      <Text style={{ color: colors.success, fontWeight: '700' }}>
-                        {correctIdx === null ? 'N/A' : OPTION_LABELS[correctIdx] || 'N/A'}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 10, color: colors.mutedForeground, textTransform: 'uppercase' }}>Correct Answer</Text>
+                      <Text style={{ fontSize: 13, fontWeight: '700', color: colors.success }}>
+                        {correctIdx === null ? 'N/A' : `Option ${OPTION_LABELS[correctIdx]}`}
                       </Text>
-                    </Text>
+                    </View>
                   </View>
 
                   {hasExplanation && (
@@ -406,9 +379,18 @@ export default function TestReportScreen() {
                       onPress={() =>
                         setOpenExplanations((prev) => ({ ...prev, [item.key]: !prev[item.key] }))
                       }
-                      style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8 }}
+                      style={{ 
+                        flexDirection: 'row', 
+                        alignItems: 'center', 
+                        justifyContent: 'center', 
+                        paddingVertical: 10,
+                        backgroundColor: colors.primary + '10',
+                        borderRadius: 10,
+                        gap: 6
+                      }}
                     >
-                      <Text style={{ fontSize: 12, fontWeight: '700', color: colors.primary }}>
+                      <BookOpen size={16} color={colors.primary} />
+                      <Text style={{ fontSize: 13, fontWeight: '700', color: colors.primary }}>
                         {explanationOpen ? 'Hide Explanation' : 'View Explanation'}
                       </Text>
                       {explanationOpen ? (
@@ -422,18 +404,18 @@ export default function TestReportScreen() {
                   {hasExplanation && explanationOpen && (
                     <View
                       style={{
-                        marginTop: 4,
+                        marginTop: 10,
                         borderRadius: 10,
                         borderWidth: 1,
-                        borderColor: colors.primary + '44',
-                        backgroundColor: colors.primary + '10',
-                        padding: 10,
+                        borderColor: colors.primary + '30',
+                        backgroundColor: colors.card,
+                        padding: 12,
                       }}
                     >
-                      <Text style={{ fontSize: 12, fontWeight: '700', color: colors.primary, marginBottom: 6 }}>
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: colors.primary, marginBottom: 8, textTransform: 'uppercase' }}>
                         Explanation
                       </Text>
-                      <Text style={{ fontSize: 12, color: colors.foreground, lineHeight: 18 }}>{item.explanation}</Text>
+                      <Text style={{ fontSize: 13, color: colors.foreground, lineHeight: 20 }}>{item.explanation}</Text>
                     </View>
                   )}
                 </GlassCard>
@@ -442,19 +424,20 @@ export default function TestReportScreen() {
           </View>
         )}
 
-        {/* Actions */}
-        <View style={{ gap: 12 }}>
-          <Button variant="outline" onPress={() => router.replace('/(auth)/(tabs)/tests' as any)}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Home size={18} color={colors.foreground} />
-              <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '600' }}>Back to Tests</Text>
+        {/* Footer Actions */}
+        <View style={{ gap: 12, marginTop: 8 }}>
+          <Button variant="primary" style={{ height: 54, borderRadius: 16 }} onPress={() => router.replace('/(auth)/(tabs)/tests' as any)}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Home size={20} color="#fff" />
+              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Return to Dashboard</Text>
             </View>
           </Button>
+          
           {testEntity?._id && (
-            <Button variant="outline" onPress={handleRetake} loading={retaking} disabled={retaking}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <RotateCcw size={16} color={colors.foreground} />
-                <Text style={{ color: colors.foreground, fontSize: 15, fontWeight: '600' }}>Retake Test</Text>
+            <Button variant="outline" style={{ height: 54, borderRadius: 16 }} onPress={handleRetake} loading={retaking} disabled={retaking}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <RotateCcw size={18} color={colors.foreground} />
+                <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '600' }}>Retake Test</Text>
               </View>
             </Button>
           )}
@@ -463,4 +446,3 @@ export default function TestReportScreen() {
     </View>
   );
 }
-
