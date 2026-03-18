@@ -60,7 +60,7 @@ export default function DoubtDetailScreen() {
   const [answerBody, setAnswerBody] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [upvotedDoubt, setUpvotedDoubt] = useState(false);
   const [upvotedAnswers, setUpvotedAnswers] = useState<Set<string>>(new Set());
 
@@ -158,16 +158,16 @@ export default function DoubtDetailScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       {/* Header (Sticky) */}
-      <View style={{ 
-        paddingTop: insets.top, 
-        backgroundColor: colors.background, 
-        borderBottomWidth: 1, 
+      <View style={{
+        paddingTop: insets.top,
+        backgroundColor: colors.background,
+        borderBottomWidth: 1,
         borderBottomColor: colors.border,
-        zIndex: 10 
+        zIndex: 10
       }}>
         <View style={{ paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <Pressable 
-            onPress={() => router.push('/(auth)/doubts' as any)} 
+          <Pressable
+            onPress={() => router.push('/(auth)/doubts' as any)}
             style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}
           >
             <ArrowLeft size={16} color={colors.foreground} />
@@ -186,8 +186,8 @@ export default function DoubtDetailScreen() {
         </View>
       </View>
 
-      <KeyboardAvoidingView 
-        style={{ flex: 1 }} 
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
@@ -203,8 +203,8 @@ export default function DoubtDetailScreen() {
 
           {/* Doubt Card */}
           <MotiView
-            from={{ opacity: 0, translateY: 16 }}
-            animate={{ opacity: 1, translateY: 0 }}
+          // from={{ opacity: 0, translateY: 16 }}
+          // animate={{ opacity: 1, translateY: 0 }}
           >
             <View style={{ backgroundColor: colors.card, borderRadius: 20, padding: 20, borderWidth: 1, borderColor: colors.border, ...shadows.card }}>
               {/* Meta row */}
@@ -248,17 +248,17 @@ export default function DoubtDetailScreen() {
                   by <Text style={{ fontWeight: '600', color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>{doubt.userId?.name ?? 'Unknown'}</Text>
                 </Text>
                 <Text style={{ fontSize: 12, color: colors.mutedForeground, fontFamily: 'Inter_400Regular' }}>{doubt.views} views</Text>
-                
+
                 <Pressable
                   onPress={handleUpvoteDoubt}
-                  style={({ pressed }) => ({
+                  style={{
                     flexDirection: 'row', alignItems: 'center', gap: 6,
                     paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderWidth: 1,
                     backgroundColor: upvotedDoubt ? colors.primary + '15' : colors.card,
                     borderColor: upvotedDoubt ? colors.primary + '40' : colors.border,
                     marginLeft: 'auto',
-                    opacity: pressed ? 0.7 : 1
-                  })}
+                    opacity: 1
+                  }}
                 >
                   <ThumbsUp size={14} color={upvotedDoubt ? colors.primary : colors.mutedForeground} />
                   <Text style={{ fontSize: 12, fontWeight: '600', color: upvotedDoubt ? colors.primary : colors.mutedForeground, fontFamily: 'Inter_600SemiBold' }}>
@@ -300,15 +300,15 @@ export default function DoubtDetailScreen() {
                     .map((ans, i) => (
                       <MotiView
                         key={ans._id}
-                        from={{ opacity: 0, translateY: 12 }}
-                        animate={{ opacity: 1, translateY: 0 }}
-                        transition={{ delay: i * 50 }}
+                      // from={{ opacity: 0, translateY: 12 }}
+                      // animate={{ opacity: 1, translateY: 0 }}
+                      // transition={{ delay: i * 50 }}
                       >
-                        <View style={{ 
-                          backgroundColor: ans.isAccepted ? colors.primary + '0A' : colors.card, 
-                          borderRadius: 20, padding: 16, borderWidth: 1, 
+                        <View style={{
+                          backgroundColor: ans.isAccepted ? colors.primary + '0A' : colors.card,
+                          borderRadius: 20, padding: 16, borderWidth: 1,
                           borderColor: ans.isAccepted ? colors.primary + '30' : colors.border,
-                          ...shadows.sm
+                          // ...shadows.sm
                         }}>
                           {/* Answer Header */}
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
@@ -345,13 +345,13 @@ export default function DoubtDetailScreen() {
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border }}>
                             <Pressable
                               onPress={() => handleUpvoteAnswer(ans._id)}
-                              style={({ pressed }) => ({
+                              style={{
+                                display: 'flex',
                                 flexDirection: 'row', alignItems: 'center', gap: 6,
                                 paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderWidth: 1,
                                 backgroundColor: upvotedAnswers.has(ans._id) ? colors.primary + '15' : colors.card,
-                                borderColor: upvotedAnswers.has(ans._id) ? colors.primary + '40' : colors.border,
-                                opacity: pressed ? 0.7 : 1
-                              })}
+                                borderColor: upvotedAnswers.has(ans._id) ? colors.primary + '40' : colors.border
+                              }}
                             >
                               <ThumbsUp size={12} color={upvotedAnswers.has(ans._id) ? colors.primary : colors.mutedForeground} />
                               <Text style={{ fontSize: 12, fontWeight: '600', color: upvotedAnswers.has(ans._id) ? colors.primary : colors.mutedForeground, fontFamily: 'Inter_600SemiBold' }}>
@@ -362,9 +362,9 @@ export default function DoubtDetailScreen() {
                             {!doubt.isResolved && !ans.isAccepted && (
                               <Pressable
                                 onPress={() => handleAcceptAnswer(ans._id)}
-                                style={({ pressed }) => ({
-                                  flexDirection: 'row', alignItems: 'center', gap: 6, opacity: pressed ? 0.7 : 1
-                                })}
+                                style={{
+                                  flexDirection: 'row', alignItems: 'center', gap: 6, opacity: 1
+                                }}
                               >
                                 <CheckCircle2 size={12} color={colors.primary} />
                                 <Text style={{ fontSize: 12, fontWeight: '500', color: colors.primary, fontFamily: 'Inter_500Medium' }}>Accept</Text>
@@ -381,11 +381,11 @@ export default function DoubtDetailScreen() {
         </ScrollView>
 
         {/* Answer Input Area */}
-        <View style={{ 
-          position: 'absolute', bottom: 100, left: 0, right: 0, 
-          paddingHorizontal: 16, paddingVertical: 12, 
-          backgroundColor: colors.background + 'F0', 
-          borderTopWidth: 1, borderTopColor: colors.border 
+        <View style={{
+          position: 'absolute', bottom: 100, left: 0, right: 0,
+          paddingHorizontal: 16, paddingVertical: 12,
+          backgroundColor: colors.background + 'F0',
+          borderTopWidth: 1, borderTopColor: colors.border
         }}>
           <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8 }}>
             <TextInput
@@ -405,11 +405,11 @@ export default function DoubtDetailScreen() {
             <Pressable
               onPress={handleSubmitAnswer}
               disabled={!answerBody.trim() || submitting}
-              style={({ pressed }) => ({
+              style={{
                 width: 44, height: 44, borderRadius: 16, backgroundColor: colors.primary,
                 alignItems: 'center', justifyContent: 'center',
-                opacity: (!answerBody.trim() || submitting) ? 0.5 : pressed ? 0.8 : 1
-              })}
+                opacity: (!answerBody.trim() || submitting) ? 0.5 : 1
+              }}
             >
               {submitting ? (
                 <ActivityIndicator size="small" color="#fff" />

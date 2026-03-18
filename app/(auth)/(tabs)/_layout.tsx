@@ -3,9 +3,11 @@ import { Tabs } from 'expo-router';
 import { Home, FileText, Sparkles, MessageCircle, User } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabsLayout() {
   const { colors, shadows } = useTheme();
+  const insets = useSafeAreaInsets();
 
   return (
     <Tabs
@@ -17,8 +19,8 @@ export default function TabsLayout() {
           backgroundColor: colors.card,
           borderTopColor: colors.border,
           borderTopWidth: 1,
-          height: Platform.OS === 'ios' ? 88 : 64,
-          paddingBottom: Platform.OS === 'ios' ? 28 : 8,
+          height: 60 + insets.bottom,
+          paddingBottom: Math.max(8, insets.bottom),
           paddingTop: 8,
           ...shadows.sm,
         },
@@ -48,6 +50,7 @@ export default function TabsLayout() {
         options={{
           title: 'AI',
           tabBarIcon: ({ color, size }) => <Sparkles size={size} color={color} />,
+          tabBarStyle: { display: 'none' },
         }}
       />
       <Tabs.Screen

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TextInput, ScrollView, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Sparkles, Send, Bot, User, X, TrendingUp, BookOpen, Target, MessageSquare } from 'lucide-react-native';
+import { Sparkles, Send, Bot, User, X, TrendingUp, BookOpen, Target, MessageSquare, ArrowLeft } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import api from '@/lib/api';
@@ -146,10 +146,17 @@ export default function AIAssistantScreen() {
   ];
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.background }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: colors.background }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
+    >
       {/* Header */}
       <View style={{ paddingTop: insets.top, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.card, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <Pressable onPress={() => router.replace('/(auth)/(tabs)')} style={{ padding: 4 }}>
+            <ArrowLeft size={24} color={colors.foreground} />
+          </Pressable>
           <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}>
             <Sparkles size={18} color="#fff" />
           </View>
@@ -187,7 +194,12 @@ export default function AIAssistantScreen() {
       </View>
 
       {/* Chat Area */}
-      <ScrollView ref={scrollViewRef} contentContainerStyle={{ padding: 16, paddingBottom: 24, flexGrow: 1 }} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        ref={scrollViewRef}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 24, flexGrow: 1 }}
+        keyboardShouldPersistTaps="handled"
+      >
         {messages.length === 0 ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 40 }}>
              <View style={{ width: 64, height: 64, borderRadius: 20, backgroundColor: colors.primary + '20', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>

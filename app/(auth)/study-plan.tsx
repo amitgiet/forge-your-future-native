@@ -201,20 +201,50 @@ const StudyPlanner = () => {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: insets.top + 8, paddingBottom: 64 }} showsVerticalScrollIndicator={false}>
-      {/* Header */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <Pressable onPress={() => router.back()} style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
-            <ArrowLeft size={20} color={colors.foreground} />
-          </Pressable>
-          <Text style={{ fontSize: 24, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold' }}>Study Planner</Text>
-        </View>
-        <View style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Target size={16} color={colors.primary} />
-          <Text style={{ fontSize: 12, fontWeight: '700', color: colors.foreground, textTransform: 'uppercase', letterSpacing: 1 }}>{plan.examType}</Text>
+      {/* ── Sticky Header ── */}
+      <View style={{
+        paddingTop: insets.top,
+        paddingHorizontal: 16,
+        paddingBottom: 4,
+        backgroundColor: colors.card,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border,
+        zIndex: 10,
+      }}>
+        <View style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingVertical: 8
+        }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <Pressable 
+              onPress={() => router.back()}
+              style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <ArrowLeft size={20} color={colors.foreground} />
+            </Pressable>
+            <View>
+              <Text style={{ fontSize: 20, fontWeight: '800', color: colors.primary, fontFamily: 'PlusJakartaSans_800ExtraBold' }}>
+                Study Planner
+              </Text>
+              <Text style={{ fontSize: 12, color: colors.mutedForeground, marginTop: -2, fontFamily: 'Inter_400Regular' }}>
+                AI Personalized Roadmap
+              </Text>
+            </View>
+          </View>
+          <View style={{ backgroundColor: colors.primary + '14', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Target size={14} color={colors.primary} />
+            <Text style={{ fontSize: 11, fontWeight: '800', color: colors.primary, textTransform: 'uppercase', letterSpacing: 0.5 }}>{plan.examType}</Text>
+          </View>
         </View>
       </View>
+
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 64, paddingTop: 16 }}
+        showsVerticalScrollIndicator={false}
+      >
 
       {/* Global Progress Card */}
       <MotiView from={{ opacity: 0, translateY: 20 }} animate={{ opacity: 1, translateY: 0 }}

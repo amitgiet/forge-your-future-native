@@ -91,37 +91,53 @@ const Leaderboard = () => {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 16, paddingTop: insets.top + 8, paddingBottom: 100 }}
-        showsVerticalScrollIndicator={false}
-      >
-      {/* Header — same as web */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-        <Pressable
-          onPress={() => router.back()}
-          style={({ pressed }) => ({
-            width: 40, height: 40, borderRadius: 12,
-            backgroundColor: colors.card,
-            borderWidth: 1, borderColor: colors.border,
-            alignItems: 'center', justifyContent: 'center',
-            opacity: pressed ? 0.7 : 1,
-          })}
-        >
-          <ArrowLeft size={20} color={colors.foreground} />
-        </Pressable>
-        <View style={{ flex: 1 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Trophy size={20} color={colors.warning} />
-            <Text style={{ fontSize: 20, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold' }}>
-              Leaderboard
-            </Text>
+      {/* ── Sticky Header ── */}
+      <View style={{
+        paddingTop: insets.top,
+        paddingHorizontal: 16,
+        paddingBottom: 4,
+        backgroundColor: colors.card,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border,
+        zIndex: 10,
+      }}>
+        <View style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingVertical: 8
+        }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <Pressable 
+              onPress={() => router.back()}
+              style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <ArrowLeft size={20} color={colors.foreground} />
+            </Pressable>
+            <View>
+              <Text style={{ fontSize: 20, fontWeight: '800', color: colors.primary, fontFamily: 'PlusJakartaSans_800ExtraBold' }}>
+                Leaderboard
+              </Text>
+              <Text style={{ fontSize: 12, color: colors.mutedForeground, marginTop: -2, fontFamily: 'Inter_400Regular' }}>
+                Daily DPP Rankings
+              </Text>
+            </View>
           </View>
-          <Text style={{ fontSize: 12, color: colors.mutedForeground, fontFamily: 'Inter_400Regular' }}>
-            Daily DPP Rankings
-          </Text>
+          <View style={{
+            width: 44, height: 44, borderRadius: 16,
+            backgroundColor: colors.primary,
+            alignItems: 'center', justifyContent: 'center',
+          }}>
+            <Trophy size={24} color="#FFF" />
+          </View>
         </View>
       </View>
+
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 100, paddingTop: 16 }}
+        showsVerticalScrollIndicator={false}
+      >
 
       {/* Tabs — same as web: 3 buttons flex-1 */}
       <View style={{ flexDirection: 'row', gap: 8, marginBottom: 24 }}>

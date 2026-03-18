@@ -55,11 +55,46 @@ export default function FormulaCardsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <View style={{ paddingTop: insets.top, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.card, paddingVertical: 20, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <Pressable onPress={() => router.canGoBack() ? router.back() : router.replace('/(auth)/(tabs)')} style={{ padding: 4 }}>
-          <ChevronLeft size={24} color={colors.foreground} />
-        </Pressable>
-        <Text style={{ fontSize: 18, fontWeight: '700', color: colors.foreground }}>📋 Formula Cards</Text>
+      {/* ── Sticky Header ── */}
+      <View style={{
+        paddingTop: insets.top,
+        paddingHorizontal: 16,
+        paddingBottom: 4,
+        backgroundColor: colors.card,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border,
+        zIndex: 10,
+      }}>
+        <View style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingVertical: 8
+        }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <Pressable 
+              onPress={() => router.canGoBack() ? router.back() : router.replace('/(auth)/(tabs)')}
+              style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <ChevronLeft size={20} color={colors.foreground} />
+            </Pressable>
+            <View>
+              <Text style={{ fontSize: 20, fontWeight: '800', color: colors.primary, fontFamily: 'PlusJakartaSans_800ExtraBold' }}>
+                Formula Cards
+              </Text>
+              <Text style={{ fontSize: 12, color: colors.mutedForeground, marginTop: -2, fontFamily: 'Inter_400Regular' }}>
+                Concept summaries & key notes
+              </Text>
+            </View>
+          </View>
+          <View style={{
+            width: 44, height: 44, borderRadius: 16,
+            backgroundColor: colors.primary,
+            alignItems: 'center', justifyContent: 'center',
+          }}>
+            <FlaskConical size={24} color="#FFF" />
+          </View>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 100 }}>

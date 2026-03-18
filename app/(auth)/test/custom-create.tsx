@@ -1,15 +1,14 @@
-﻿import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, Pressable, Alert, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowLeft, ChevronRight, CheckCircle2, Search, Target, Zap, Clock3, BookOpen, Atom, FlaskConical } from 'lucide-react-native';
+import { ArrowLeft, ChevronRight, CheckCircle2, Search, Target, Zap, Clock3, BookOpen, Atom, FlaskConical, ChevronDown } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import apiService from '@/lib/apiService';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Select } from '@/components/ui/Select';
-import { Switch } from '@/components/ui/Switch';
 import { Input } from '@/components/ui/Input';
 
 type Subject = 'biology' | 'chemistry' | 'physics';
@@ -48,17 +47,19 @@ export default function CustomTestCreateScreen() {
   const { colors } = useTheme();
 
   const [step, setStep] = useState<Step>('subject');
-  const [subject, setSubject] = useState<Subject | null>(null);
+  const [selectedSubjects, setSelectedSubjects] = useState<Set<Subject>>(new Set());
+  const subject: Subject | null = selectedSubjects.size === 1 ? [...selectedSubjects][0] : null;
+  const isMultiSubject = selectedSubjects.size > 1;
+
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [chapterSearch, setChapterSearch] = useState('');
-  const [selectedChapter, setSelectedChapter] = useState<Chapter | null>(null);
+  const [selectedChapters, setSelectedChapters] = useState<Set<string>>(new Set());
   const [topicGroups, setTopicGroups] = useState<TopicGroup[]>([]);
   const [selectedSubTopics, setSelectedSubTopics] = useState<Set<string>>(new Set());
   const [expandedTopic, setExpandedTopic] = useState<string | null>(null);
 
   const [difficulty, setDifficulty] = useState<Difficulty>('mixed');
   const [mode, setMode] = useState<Mode>('test');
-  const [isPYQ, setIsPYQ] = useState(false);
   const [title, setTitle] = useState('');
   const [numQuestions, setNumQuestions] = useState<number>(30);
   const [duration, setDuration] = useState<number>(45);
@@ -83,6 +84,7 @@ export default function CustomTestCreateScreen() {
   }, [chapterSearch, chapters]);
 
   const availableQuestionCount = useMemo(() => {
+    if (selectedSubTopics.size === 0 && topicGroups.length === 0) return 0;
     let total = 0;
     topicGroups.forEach((group) => {
       group.sub_topics.forEach((st) => {
@@ -95,40 +97,89 @@ export default function CustomTestCreateScreen() {
     return total;
   }, [topicGroups, selectedSubTopics]);
 
-  const effectiveQuestionCount = Math.min(numQuestions, availableQuestionCount || numQuestions);
+  const maxSelectableQuestions = availableQuestionCount > 0 ? availableQuestionCount : null;
+  const effectiveQuestionCount = maxSelectableQuestions
+    ? Math.min(numQuestions, maxSelectableQuestions)
+    : numQuestions;
 
-  const handleSelectSubject = async (nextSubject: Subject) => {
-    setSubject(nextSubject);
-    setSelectedChapter(null);
+  const questionPresetOptions = useMemo(() => {
+    if (!maxSelectableQuestions) return QUESTION_PRESETS;
+    const filtered = QUESTION_PRESETS.filter((n) => n <= maxSelectableQuestions);
+    if (filtered.length === 0 || filtered[filtered.length - 1] !== maxSelectableQuestions) {
+      filtered.push(maxSelectableQuestions);
+    }
+    return Array.from(new Set(filtered)).sort((a, b) => a - b);
+  }, [maxSelectableQuestions]);
+
+  useEffect(() => {
+    if (!maxSelectableQuestions) return;
+    if (numQuestions > maxSelectableQuestions) {
+      setNumQuestions(maxSelectableQuestions);
+    }
+  }, [maxSelectableQuestions, numQuestions]);
+
+  const toggleSubject = (sub: Subject) => {
+    setSelectedSubjects((prev) => {
+      const next = new Set(prev);
+      if (next.has(sub)) next.delete(sub);
+      else next.add(sub);
+      return next;
+    });
+  };
+
+  const handleProceedFromSubject = async () => {
+    if (selectedSubjects.size === 0) return;
+    setSelectedChapters(new Set());
     setTopicGroups([]);
     setSelectedSubTopics(new Set());
     setExpandedTopic(null);
 
-    setLoadingChapters(true);
-    try {
-      const res = await apiService.curriculum.getChapters(nextSubject);
-      const data = Array.isArray(res.data?.data) ? res.data.data : [];
-      setChapters(data);
-      setStep('chapter');
-    } catch (e) {
-      console.error('Failed to load chapters', e);
-      Alert.alert('Error', 'Failed to load chapters');
-    } finally {
-      setLoadingChapters(false);
+    if (selectedSubjects.size === 1) {
+      setLoadingChapters(true);
+      try {
+        const res = await apiService.curriculum.getChapters([...selectedSubjects][0]);
+        const data = Array.isArray(res.data?.data) ? res.data.data : [];
+        setChapters(data);
+        setStep('chapter');
+      } catch (e) {
+        console.error('Failed to load chapters', e);
+        Alert.alert('Error', 'Failed to load chapters');
+      } finally {
+        setLoadingChapters(false);
+      }
+    } else {
+      setStep('config');
     }
   };
 
-  const handleSelectChapter = async (chapter: Chapter) => {
-    if (!subject) return;
-    setSelectedChapter(chapter);
+  const toggleChapter = (chapterId: string) => {
+    setSelectedChapters((prev) => {
+      const next = new Set(prev);
+      if (next.has(chapterId)) next.delete(chapterId);
+      else next.add(chapterId);
+      return next;
+    });
+  };
+
+  const handleProceedFromChapters = async () => {
+    if (!subject || selectedChapters.size === 0) return;
     setSelectedSubTopics(new Set());
     setExpandedTopic(null);
 
     setLoadingSubTopics(true);
     try {
-      const res = await apiService.curriculum.getSubTopics(subject, chapter._id);
-      const data = Array.isArray(res.data?.data) ? res.data.data : [];
-      setTopicGroups(data);
+      const responses = await Promise.all(
+        Array.from(selectedChapters).map((id) => apiService.curriculum.getSubTopics(subject, id))
+      );
+      
+      // Combine all topic groups from all selected chapters
+      const combinedGroups: TopicGroup[] = [];
+      responses.forEach(res => {
+        const data = Array.isArray(res.data?.data) ? res.data.data : [];
+        combinedGroups.push(...data);
+      });
+      
+      setTopicGroups(combinedGroups);
       setStep('subtopics');
     } catch (e) {
       console.error('Failed to load subtopics', e);
@@ -174,30 +225,38 @@ export default function CustomTestCreateScreen() {
       setStep('chapter');
       return;
     }
-    setStep('subtopics');
+    if (step === 'config') {
+      if (isMultiSubject) setStep('subject');
+      else setStep('subtopics');
+    }
   };
 
   const handleCreate = async () => {
-    if (!subject) {
-      Alert.alert('Missing Subject', 'Please select subject');
+    if (!subject && !isMultiSubject) {
+      Alert.alert('Missing Subject', 'Please select at least one subject');
+      return;
+    }
+
+    if (maxSelectableQuestions && numQuestions > maxSelectableQuestions) {
+      Alert.alert('Too many questions', `Please select ${maxSelectableQuestions} or fewer questions.`);
       return;
     }
 
     setCreating(true);
     try {
       const payload: any = {
-        title: title.trim() || `${SUBJECT_CONFIG[subject].label} Custom Test`,
-        subject,
-        numberOfQuestions: effectiveQuestionCount,
-        duration,
-        difficulty,
-        mode,
-        isPYQ,
+        title: title.trim() || (isMultiSubject ? 'Combined Custom Test' : `${SUBJECT_CONFIG[subject!].label} Custom Test`),
+        questionCount: Number(effectiveQuestionCount),
+        duration: Number(duration),
+        difficulty: difficulty === 'mixed' ? undefined : difficulty,
       };
 
-      if (selectedChapter?._id) payload.chapterId = selectedChapter._id;
-      if (selectedSubTopics.size > 0) {
-        payload.subTopics = Array.from(selectedSubTopics).map((entry) => entry.split('|||')[1]);
+      if (isMultiSubject) {
+        payload.subjects = Array.from(selectedSubjects);
+      } else {
+        payload.subjects = subject ? [subject] : [];
+        if (selectedChapters.size > 0) payload.chapters = Array.from(selectedChapters);
+        if (selectedSubTopics.size > 0) payload.subTopics = Array.from(selectedSubTopics).map((entry) => entry.split('|||')[1]);
       }
 
       const createRes = await apiService.tests.createCustomTest(payload);
@@ -236,7 +295,7 @@ export default function CustomTestCreateScreen() {
           </View>
           <View style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: colors.primary + '15' }}>
             <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 11 }}>
-              {step === 'subject' ? '1/4' : step === 'chapter' ? '2/4' : step === 'subtopics' ? '3/4' : '4/4'}
+              {stepIndex + 1}/{steps.length}
             </Text>
           </View>
         </View>
@@ -281,41 +340,65 @@ export default function CustomTestCreateScreen() {
         keyboardShouldPersistTaps="handled"
       >
         {step === 'subject' && (
-          <GlassCard style={{ gap: 10 }}>
-            <Text style={{ fontSize: 16, fontWeight: '700', color: colors.foreground }}>Choose Subject</Text>
-            {(Object.keys(SUBJECT_CONFIG) as Subject[]).map((sub) => {
-              const active = subject === sub;
-              const Icon = SUBJECT_CONFIG[sub].Icon;
-              return (
-                <Pressable
-                  key={sub}
-                  onPress={() => handleSelectSubject(sub)}
-                  style={{
-                    borderWidth: 1,
-                    borderColor: active ? colors.primary : colors.border,
-                    borderRadius: 12,
-                    backgroundColor: active ? colors.primary + '15' : colors.card,
-                    padding: 14,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                    <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: active ? colors.primary + '22' : colors.muted, alignItems: 'center', justifyContent: 'center' }}>
-                      <Icon size={16} color={active ? colors.primary : colors.mutedForeground} />
+          <>
+            <GlassCard style={{ gap: 10 }}>
+              <View>
+                <Text style={{ fontSize: 16, fontWeight: '700', color: colors.foreground }}>Choose Subject</Text>
+                <Text style={{ fontSize: 12, color: colors.mutedForeground, marginTop: 2 }}>
+                  Select one for chapter control, or multiple for a combined quiz
+                </Text>
+              </View>
+              {(Object.keys(SUBJECT_CONFIG) as Subject[]).map((sub) => {
+                const active = selectedSubjects.has(sub);
+                const Icon = SUBJECT_CONFIG[sub].Icon;
+                return (
+                  <Pressable
+                    key={sub}
+                    onPress={() => toggleSubject(sub)}
+                    style={{
+                      borderWidth: 1,
+                      borderColor: active ? colors.primary : colors.border,
+                      borderRadius: 12,
+                      backgroundColor: active ? colors.primary + '15' : colors.card,
+                      padding: 14,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: active ? colors.primary + '22' : colors.muted, alignItems: 'center', justifyContent: 'center' }}>
+                        <Icon size={16} color={active ? colors.primary : colors.mutedForeground} />
+                      </View>
+                      <View>
+                        <Text style={{ color: colors.foreground, fontWeight: '700' }}>{SUBJECT_CONFIG[sub].label}</Text>
+                        <Text style={{ color: colors.mutedForeground, fontSize: 11, marginTop: 2 }}>
+                          {active
+                            ? selectedSubjects.size === 1 ? 'Chapter & subtopic control →' : 'Added to combined quiz'
+                            : 'Tap to select'}
+                        </Text>
+                      </View>
                     </View>
-                    <View>
-                      <Text style={{ color: colors.foreground, fontWeight: '700' }}>{SUBJECT_CONFIG[sub].label}</Text>
-                      <Text style={{ color: colors.mutedForeground, fontSize: 11, marginTop: 2 }}>{SUBJECT_CONFIG[sub].short}</Text>
+                    <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 1, borderColor: active ? colors.primary : colors.mutedForeground, backgroundColor: active ? colors.primary : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
+                      {active && <CheckCircle2 size={12} color="#fff" />}
                     </View>
-                  </View>
-                  {active && <CheckCircle2 size={16} color={colors.primary} />}
-                </Pressable>
-              );
-            })}
-            {loadingChapters && <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>Loading chapters...</Text>}
-          </GlassCard>
+                  </Pressable>
+                );
+              })}
+            </GlassCard>
+            {selectedSubjects.size > 0 && (
+              <Button onPress={handleProceedFromSubject} disabled={loadingChapters} size="lg">
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>
+                    {isMultiSubject
+                      ? `⚡ Combined Quiz (${selectedSubjects.size} subjects)`
+                      : `Continue with ${SUBJECT_CONFIG[[...selectedSubjects][0]].label}`}
+                  </Text>
+                  <ChevronRight size={16} color="#fff" />
+                </View>
+              </Button>
+            )}
+          </>
         )}
 
         {step === 'chapter' && (
@@ -333,23 +416,45 @@ export default function CustomTestCreateScreen() {
             </View>
 
             {loadingChapters ? (
-              <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>Loading...</Text>
+              <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>Loading chapters...</Text>
             ) : (
-              filteredChapters.map((chapter) => (
-                <Pressable
-                  key={chapter._id}
-                  onPress={() => handleSelectChapter(chapter)}
-                  style={{
-                    borderWidth: 1,
-                    borderColor: selectedChapter?._id === chapter._id ? colors.primary : colors.border,
-                    borderRadius: 12,
-                    backgroundColor: selectedChapter?._id === chapter._id ? colors.primary + '15' : colors.card,
-                    padding: 12,
-                  }}
-                >
-                  <Text style={{ color: colors.foreground, fontWeight: '600' }}>{formatChapterId(chapter._id)}</Text>
-                </Pressable>
-              ))
+              <>
+                {filteredChapters.map((chapter) => {
+                  const active = selectedChapters.has(chapter._id);
+                  return (
+                    <Pressable
+                      key={chapter._id}
+                      onPress={() => toggleChapter(chapter._id)}
+                      style={{
+                        borderWidth: 1,
+                        borderColor: active ? colors.primary : colors.border,
+                        borderRadius: 12,
+                        backgroundColor: active ? colors.primary + '15' : colors.card,
+                        padding: 12,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between'
+                      }}
+                    >
+                      <Text style={{ flex: 1, color: colors.foreground, fontWeight: '600' }}>{formatChapterId(chapter._id)}</Text>
+                      <View style={{ width: 18, height: 18, borderRadius: 4, borderWidth: 1, borderColor: active ? colors.primary : colors.mutedForeground, backgroundColor: active ? colors.primary : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
+                        {active && <CheckCircle2 size={12} color="#fff" />}
+                      </View>
+                    </Pressable>
+                  );
+                })}
+
+                {selectedChapters.size > 0 && (
+                  <Button onPress={handleProceedFromChapters} loading={loadingSubTopics} size="lg" style={{ marginTop: 8 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>
+                        Continue with {selectedChapters.size} Chapter(s)
+                      </Text>
+                      <ChevronRight size={16} color="#fff" />
+                    </View>
+                  </Button>
+                )}
+              </>
             )}
           </GlassCard>
         )}
@@ -357,9 +462,16 @@ export default function CustomTestCreateScreen() {
         {step === 'subtopics' && (
           <GlassCard style={{ gap: 10 }}>
             <Text style={{ fontSize: 16, fontWeight: '700', color: colors.foreground }}>Select Topics</Text>
-            <Text style={{ fontSize: 12, color: colors.mutedForeground }}>
-              {selectedSubTopics.size > 0 ? `${selectedSubTopics.size} selected` : 'Leave empty for all subtopics'}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 }}>
+              <Text style={{ fontSize: 12, color: colors.mutedForeground }}>
+                {selectedSubTopics.size > 0 ? `${selectedSubTopics.size} selected · ~${availableQuestionCount} Qs` : 'Leave empty for all'}
+              </Text>
+              {selectedSubTopics.size > 0 && (
+                <Pressable onPress={() => setSelectedSubTopics(new Set())}>
+                  <Text style={{ fontSize: 12, color: colors.primary, fontWeight: '700' }}>Clear</Text>
+                </Pressable>
+              )}
+            </View>
 
             {loadingSubTopics ? (
               <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>Loading subtopics...</Text>
@@ -376,17 +488,18 @@ export default function CustomTestCreateScreen() {
                       <View style={{ flex: 1, paddingRight: 8 }}>
                         <Text style={{ color: colors.foreground, fontWeight: '700', fontSize: 13 }}>{group.topic}</Text>
                         <Text style={{ color: colors.mutedForeground, fontSize: 11, marginTop: 2 }}>
-                          {group.sub_topics.length} subtopics - {selectedCount} selected
+                          {group.sub_topics.length} subtopics
+                          {selectedCount > 0 && <Text style={{ color: colors.primary, fontWeight: '600' }}> · {selectedCount} selected</Text>}
                         </Text>
                       </View>
-                      <ChevronRight size={16} color={colors.mutedForeground} style={{ transform: [{ rotate: expanded ? '90deg' : '0deg' }] }} />
+                      <ChevronDown size={16} color={colors.mutedForeground} style={{ transform: [{ rotate: expanded ? '180deg' : '0deg' }] }} />
                     </Pressable>
 
                     {expanded && (
                       <View style={{ padding: 10, gap: 8 }}>
                         <Pressable
                           onPress={() => toggleAllInTopic(group)}
-                          style={{ alignSelf: 'flex-end', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, borderWidth: 1, borderColor: colors.border }}
+                          style={{ alignSelf: 'flex-end', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card }}
                         >
                           <Text style={{ fontSize: 11, color: colors.foreground, fontWeight: '600' }}>Toggle All</Text>
                         </Pressable>
@@ -411,7 +524,12 @@ export default function CustomTestCreateScreen() {
                               }}
                             >
                               <Text style={{ flex: 1, color: colors.foreground, fontSize: 12 }}>{st.subTopic}</Text>
-                              <Badge variant="outline">{st.uid_count}Q</Badge>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                <View style={{ backgroundColor: colors.muted, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                                  <Text style={{ fontSize: 10, color: colors.foreground }}>{st.uid_count}Q</Text>
+                                </View>
+                                {active && <CheckCircle2 size={14} color={colors.primary} />}
+                              </View>
                             </Pressable>
                           );
                         })}
@@ -422,10 +540,11 @@ export default function CustomTestCreateScreen() {
               })
             )}
 
-            <Button onPress={() => setStep('config')} size="sm">
+            <Button onPress={() => setStep('config')} size="lg" style={{ marginTop: 8 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>Continue</Text>
-                <ChevronRight size={14} color="#fff" />
+                <Target size={16} color="#fff" />
+                <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>Configure Test</Text>
+                <ChevronRight size={16} color="#fff" />
               </View>
             </Button>
           </GlassCard>
@@ -434,9 +553,27 @@ export default function CustomTestCreateScreen() {
         {step === 'config' && (
           <>
             <GlassCard style={{ gap: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, backgroundColor: colors.primary + '10', borderRadius: 12, borderWidth: 1, borderColor: colors.primary + '30' }}>
+                <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: colors.primary + '20', alignItems: 'center', justifyContent: 'center' }}>
+                  <Target size={20} color={colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground }}>
+                    {isMultiSubject
+                      ? `Combined (${selectedSubjects.size} subjects)`
+                      : `${subject && SUBJECT_CONFIG[subject].label} · ${selectedChapters.size} Chapter(s)`}
+                  </Text>
+                  <Text style={{ fontSize: 11, color: colors.mutedForeground, marginTop: 2 }}>
+                    {selectedSubTopics.size > 0
+                      ? `${selectedSubTopics.size} subtopic(s) · ~${availableQuestionCount} available Qs`
+                      : `All subtopics · ~${availableQuestionCount} available Qs`}
+                  </Text>
+                </View>
+              </View>
+
               <Input
                 label="Test Title"
-                placeholder={`${subject ? SUBJECT_CONFIG[subject].label : 'Custom'} Test`}
+                placeholder={isMultiSubject ? 'Combined Test' : `${subject ? SUBJECT_CONFIG[subject].label : 'Custom'} Test`}
                 value={title}
                 onChangeText={setTitle}
               />
@@ -450,10 +587,10 @@ export default function CustomTestCreateScreen() {
                       <Pressable
                         key={m}
                         onPress={() => setMode(m)}
-                        style={{ flex: 1, borderRadius: 12, borderWidth: 1, borderColor: active ? colors.primary : colors.border, backgroundColor: active ? colors.primary + '18' : colors.card, paddingVertical: 10, alignItems: 'center' }}
+                        style={{ flex: 1, borderRadius: 12, borderWidth: 2, borderColor: active ? colors.primary : colors.border, backgroundColor: active ? colors.primary : colors.card, paddingVertical: 12, alignItems: 'center' }}
                       >
-                        <Text style={{ color: active ? colors.primary : colors.mutedForeground, fontWeight: '700', fontSize: 13 }}>
-                          {m === 'practice' ? 'Practice' : 'Timed Test'}
+                        <Text style={{ color: active ? '#fff' : colors.mutedForeground, fontWeight: '700', fontSize: 13 }}>
+                          {m === 'practice' ? '📚 Practice' : '⏱️ Timed Test'}
                         </Text>
                       </Pressable>
                     );
@@ -464,27 +601,34 @@ export default function CustomTestCreateScreen() {
               <Select
                 label="Difficulty"
                 options={[
-                  { label: 'Mixed', value: 'mixed' },
-                  { label: 'Easy', value: 'easy' },
-                  { label: 'Medium', value: 'medium' },
-                  { label: 'Hard', value: 'hard' },
+                  { label: '🎲 Mixed', value: 'mixed' },
+                  { label: '🟢 Easy', value: 'easy' },
+                  { label: '🟡 Medium', value: 'medium' },
+                  { label: '🔴 Hard', value: 'hard' },
                 ]}
                 value={difficulty}
                 onValueChange={(v) => setDifficulty(v as Difficulty)}
               />
 
               <View style={{ gap: 8 }}>
-                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.foreground }}>Question Count</Text>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.foreground }}>
+                  Questions: <Text style={{ color: colors.primary }}>{effectiveQuestionCount}</Text>
+                </Text>
+                {maxSelectableQuestions ? (
+                  <Text style={{ fontSize: 11, color: colors.mutedForeground }}>
+                    Max allowed for current selection: {maxSelectableQuestions}
+                  </Text>
+                ) : null}
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                  {QUESTION_PRESETS.map((n) => {
+                  {questionPresetOptions.map((n) => {
                     const active = numQuestions === n;
                     return (
                       <Pressable
                         key={n}
-                        onPress={() => setNumQuestions(n)}
-                        style={{ minWidth: 48, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: active ? colors.primary : colors.border, backgroundColor: active ? colors.primary : colors.card }}
+                        onPress={() => setNumQuestions(maxSelectableQuestions ? Math.min(n, maxSelectableQuestions) : n)}
+                        style={{ minWidth: 48, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, borderWidth: 2, borderColor: active ? colors.primary : colors.border, backgroundColor: active ? colors.primary : colors.card }}
                       >
-                        <Text style={{ color: active ? '#fff' : colors.foreground, fontWeight: '700', fontSize: 12, textAlign: 'center' }}>{n}</Text>
+                        <Text style={{ color: active ? '#fff' : colors.foreground, fontWeight: '700', fontSize: 13, textAlign: 'center' }}>{n}</Text>
                       </Pressable>
                     );
                   })}
@@ -505,36 +649,14 @@ export default function CustomTestCreateScreen() {
                 onValueChange={(v) => setDuration(Number(v))}
               />
 
-              <Switch value={isPYQ} onValueChange={setIsPYQ} label="PYQ Only" />
-            </GlassCard>
-
-            <GlassCard style={{ gap: 8 }}>
-              <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground }}>Summary</Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                {subject && <Badge variant="primary">{subject}</Badge>}
-                {selectedChapter?._id && <Badge variant="outline">{formatChapterId(selectedChapter._id)}</Badge>}
-                <Badge variant="outline">{effectiveQuestionCount} questions</Badge>
-                <Badge variant="warning">{duration} min</Badge>
-                <Badge variant="secondary">{difficulty}</Badge>
-                <Badge variant="outline">{mode}</Badge>
-                {isPYQ && <Badge variant="success">PYQ</Badge>}
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 4 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Target size={14} color={colors.primary} />
-                  <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>{effectiveQuestionCount * 4} marks total</Text>
-                </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Clock3 size={14} color={colors.warning} />
-                  <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>{duration} min window</Text>
-                </View>
-              </View>
             </GlassCard>
 
             <Button onPress={handleCreate} loading={creating} disabled={creating} size="lg">
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Zap size={16} color="#fff" />
-                <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>Create & Start Test</Text>
+                <Zap size={18} color="#fff" />
+                <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>
+                  Start {mode === 'test' ? 'Test' : 'Practice'}
+                </Text>
               </View>
             </Button>
           </>
@@ -543,5 +665,3 @@ export default function CustomTestCreateScreen() {
     </View>
   );
 }
-
-

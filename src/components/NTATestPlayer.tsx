@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { View, Text, ScrollView, Pressable, Image, TextInput, Alert, Modal, Dimensions } from 'react-native';
-import { MotiView, AnimatePresence } from 'moti';
+import { MotiView } from 'moti';
 import {
   ChevronLeft, ChevronRight, Clock, Menu, X, Flag, Star, StickyNote,
   AlertTriangle, Eraser, CheckCircle2, Send, Eye, BookOpen
@@ -66,8 +66,37 @@ const DEFAULT_SECTIONS: NTASection[] = [
 ];
 
 function getOptionArray(q: NTAQuestion): string[] {
-  if (Array.isArray(q.options)) return q.options;
-  return ['A', 'B', 'C', 'D'].map((k) => (q.options as Record<string, string>)[k] ?? '');
+  if (!q || q.options === null || q.options === undefined) return ['', '', '', ''];
+
+  if (Array.isArray(q.options)) {
+    return q.options.map((opt: any) => {
+      if (typeof opt === 'string') return opt;
+      if (opt && typeof opt === 'object') {
+        if (typeof opt.text === 'string') return opt.text;
+        if (opt.text && typeof opt.text === 'object') {
+          return String(opt.text.en || opt.text.hi || '');
+        }
+        if (typeof opt.value === 'string') return opt.value;
+      }
+      return String(opt ?? '');
+    });
+  }
+
+  if (typeof q.options === 'object') {
+    return ['A', 'B', 'C', 'D'].map((k) => {
+      const value: any = (q.options as Record<string, any>)?.[k];
+      if (typeof value === 'string') return value;
+      if (value && typeof value === 'object') {
+        if (typeof value.text === 'string') return value.text;
+        if (value.text && typeof value.text === 'object') {
+          return String(value.text.en || value.text.hi || '');
+        }
+      }
+      return '';
+    });
+  }
+
+  return ['', '', '', ''];
 }
 
 function formatTime(s: number): string {
@@ -116,13 +145,16 @@ const NTATestPlayer: React.FC<NTATestPlayerProps> = ({
   const [noteOpen, setNoteOpen] = useState(false);
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const questionScrollRef = useRef<ScrollView>(null);
 
   const questionEntryTime = useRef(Date.now());
 
   useEffect(() => {
     questionEntryTime.current = Date.now();
+    questionScrollRef.current?.scrollTo({ y: 0, animated: false });
     setMeta((prev) => {
       const next = [...prev];
+      if (!next[currentQ]) return prev;
       if (next[currentQ].state === 'not-visited') {
         next[currentQ] = { ...next[currentQ], state: 'not-answered' };
       }
@@ -172,6 +204,7 @@ const NTATestPlayer: React.FC<NTATestPlayerProps> = ({
     let attempted = 0;
     let total = 0;
     for (let i = sec.startIndex; i <= Math.min(sec.endIndex, totalQ - 1); i++) {
+      if (!meta[i]) continue;
       total++;
       if (meta[i].state === 'answered' || meta[i].state === 'answered-marked') attempted++;
     }
@@ -183,6 +216,7 @@ const NTATestPlayer: React.FC<NTATestPlayerProps> = ({
     setMeta((prev) => {
       const next = [...prev];
       const cur = next[currentQ];
+      if (!cur) return prev;
       const wasMarked = cur.state === 'marked-review' || cur.state === 'answered-marked';
       next[currentQ] = {
         ...cur,
@@ -199,6 +233,7 @@ const NTATestPlayer: React.FC<NTATestPlayerProps> = ({
     setMeta((prev) => {
       const next = [...prev];
       const cur = next[currentQ];
+      if (!cur) return prev;
       const wasMarked = cur.state === 'marked-review' || cur.state === 'answered-marked';
       next[currentQ] = {
         ...cur,
@@ -215,6 +250,7 @@ const NTATestPlayer: React.FC<NTATestPlayerProps> = ({
     setMeta((prev) => {
       const next = [...prev];
       const cur = next[currentQ];
+      if (!cur) return prev;
       const hasAnswer = cur.selectedOption !== null;
       const isMarked = cur.state === 'marked-review' || cur.state === 'answered-marked';
       if (isMarked) {
@@ -229,6 +265,7 @@ const NTATestPlayer: React.FC<NTATestPlayerProps> = ({
   const toggleBookmark = () => {
     setMeta((prev) => {
       const next = [...prev];
+      if (!next[currentQ]) return prev;
       next[currentQ] = { ...next[currentQ], bookmarked: !next[currentQ].bookmarked };
       return next;
     });
@@ -237,6 +274,7 @@ const NTATestPlayer: React.FC<NTATestPlayerProps> = ({
   const updateNote = (text: string) => {
     setMeta((prev) => {
       const next = [...prev];
+      if (!next[currentQ]) return prev;
       next[currentQ] = { ...next[currentQ], note: text };
       return next;
     });
@@ -259,6 +297,7 @@ const NTATestPlayer: React.FC<NTATestPlayerProps> = ({
       setMeta((prev) => {
         const next = [...prev];
         const cur = next[currentQ];
+        if (!cur) return prev;
         const hasAnswer = cur.selectedOption !== null;
         next[currentQ] = { ...cur, state: hasAnswer ? 'answered-marked' : 'marked-review' };
         return next;
@@ -278,7 +317,13 @@ const NTATestPlayer: React.FC<NTATestPlayerProps> = ({
 
   const q = questions[currentQ];
   const opts = getOptionArray(q);
-  const curMeta = meta[currentQ];
+  const curMeta = meta[currentQ] || {
+    state: 'not-visited' as QuestionState,
+    selectedOption: null,
+    bookmarked: false,
+    note: '',
+    timeSpent: 0,
+  };
   const isMarked = curMeta.state === 'marked-review' || curMeta.state === 'answered-marked';
   const optionLabels = ['A', 'B', 'C', 'D'];
 
@@ -320,15 +365,13 @@ const NTATestPlayer: React.FC<NTATestPlayerProps> = ({
       </View>
 
       {/* ═══ QUESTION AREA ═══ */}
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
-        <AnimatePresence >
-          <MotiView
-            key={currentQ}
-            from={{ opacity: 0, translateX: 20 }}
-            animate={{ opacity: 1, translateX: 0 }}
-            exit={{ opacity: 0, translateX: -20 }}
-            transition={{ type: 'timing', duration: 150 }}
-          >
+      <ScrollView ref={questionScrollRef} style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+        <MotiView
+          key={currentQ}
+          from={{ opacity: 0.96, translateX: 10 }}
+          animate={{ opacity: 1, translateX: 0 }}
+          transition={{ type: 'timing', duration: 120 }}
+        >
 
             {/* Header row */}
             <View
@@ -404,35 +447,32 @@ const NTATestPlayer: React.FC<NTATestPlayerProps> = ({
             </View>
 
             {/* Notes Section */}
-            <AnimatePresence>
-              {noteOpen && (
-                <MotiView
-                  from={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ type: 'timing', duration: 200 }}
-                  style={{ overflow: 'hidden', marginBottom: 12 }}
-                >
-                  <TextInput
-                    placeholder="Add a personal note for this question..."
-                    placeholderTextColor={colors.mutedForeground}
-                    value={curMeta.note}
-                    onChangeText={updateNote}
-                    multiline
-                    editable={!readOnly}
-                    style={{
-                      minHeight: 60,
-                      padding: 12,
-                      backgroundColor: colors.muted + '80',
-                      borderRadius: 12,
-                      fontSize: 14,
-                      color: colors.foreground,
-                      textAlignVertical: 'top',
-                    }}
-                  />
-                </MotiView>
-              )}
-            </AnimatePresence>
+            {noteOpen && (
+              <MotiView
+                from={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ type: 'timing', duration: 160 }}
+                style={{ marginBottom: 12 }}
+              >
+                <TextInput
+                  placeholder="Add a personal note for this question..."
+                  placeholderTextColor={colors.mutedForeground}
+                  value={curMeta.note}
+                  onChangeText={updateNote}
+                  multiline
+                  editable={!readOnly}
+                  style={{
+                    minHeight: 60,
+                    padding: 12,
+                    backgroundColor: colors.muted + '80',
+                    borderRadius: 12,
+                    fontSize: 14,
+                    color: colors.foreground,
+                    textAlignVertical: 'top',
+                  }}
+                />
+              </MotiView>
+            )}
 
             {/* Question */}
             <Text
@@ -443,11 +483,11 @@ const NTATestPlayer: React.FC<NTATestPlayerProps> = ({
                 marginBottom: 16,
               }}
             >
-              {q.question}
+              {q?.question || ''}
             </Text>
 
             {/* Question Image */}
-            {q.imageUrl && (
+            {q?.imageUrl && (
               <View
                 style={{
                   marginBottom: 16,
@@ -458,7 +498,7 @@ const NTATestPlayer: React.FC<NTATestPlayerProps> = ({
                 }}
               >
                 <Image
-                  source={{ uri: q.imageUrl }}
+                  source={{ uri: q?.imageUrl }}
                   style={{ width: '100%', height: 240, resizeMode: 'contain' }}
                 />
               </View>
@@ -479,9 +519,9 @@ const NTATestPlayer: React.FC<NTATestPlayerProps> = ({
 
                 if (readOnly) {
                   const correctIdx =
-                    typeof q.correctAnswer === 'string'
+                    typeof q?.correctAnswer === 'string'
                       ? q.correctAnswer.charCodeAt(0) - 65
-                      : typeof q.correctAnswer === 'number'
+                      : typeof q?.correctAnswer === 'number'
                         ? q.correctAnswer
                         : null;
 
@@ -563,7 +603,7 @@ const NTATestPlayer: React.FC<NTATestPlayerProps> = ({
             </View>
 
             {/* Explanation */}
-            {readOnly && q.explanation && (
+            {readOnly && q?.explanation && (
               <View
                 style={{
                   marginTop: 16,
@@ -601,12 +641,11 @@ const NTATestPlayer: React.FC<NTATestPlayerProps> = ({
                     color: colors.mutedForeground,
                   }}
                 >
-                  {q.explanation}
+                  {q?.explanation}
                 </Text>
               </View>
             )}
-          </MotiView>
-        </AnimatePresence>
+        </MotiView>
       </ScrollView>
 
       {/* ═══ BOTTOM CONTROLS ═══ */}
@@ -817,6 +856,15 @@ const STATE_COLORS: Record<QuestionState, { bg: string, border: string, text: st
 
 const QuestionPalette: React.FC<any> = ({ sections, meta, currentQ, totalQ, stats, sectionStats, onSelect, onClose, colors }) => {
   const [activeSection, setActiveSection] = useState(0);
+  const safeSections = Array.isArray(sections) ? sections : [];
+  const resolvedSection = safeSections[activeSection] || safeSections[0] || null;
+
+  useEffect(() => {
+    if (!safeSections.length) return;
+    if (activeSection >= safeSections.length) {
+      setActiveSection(0);
+    }
+  }, [activeSection, safeSections.length]);
 
   return (
     <View style={{ flex: 1 }}>
@@ -834,11 +882,11 @@ const QuestionPalette: React.FC<any> = ({ sections, meta, currentQ, totalQ, stat
 
       <View style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ padding: 12, gap: 8 }}>
-          {sections.map((sec: any, si: number) => {
+          {safeSections.map((sec: any, si: number) => {
             const ss = sectionStats(sec);
             const isActive = activeSection === si;
             return (
-              <Pressable key={si} onPress={() => setActiveSection(si)} style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999, backgroundColor: isActive ? colors.primary : colors.muted }}>
+              <Pressable key={`${si}-${sec?.name || 'section'}`} onPress={() => setActiveSection(si)} style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999, backgroundColor: isActive ? colors.primary : colors.muted }}>
                 <Text style={{ fontSize: 12, fontWeight: '600', color: isActive ? '#fff' : colors.mutedForeground }}>{sec.emoji} {sec.name} <Text style={{ opacity: 0.7 }}>{ss.attempted}/{ss.total}</Text></Text>
               </Pressable>
             );
@@ -847,9 +895,10 @@ const QuestionPalette: React.FC<any> = ({ sections, meta, currentQ, totalQ, stat
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16, flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-        {Array.from({ length: Math.min(sections[activeSection].endIndex, totalQ - 1) - sections[activeSection].startIndex + 1 }, (_, i) => {
-          const qIdx = sections[activeSection].startIndex + i;
+        {!resolvedSection ? null : Array.from({ length: Math.min(resolvedSection.endIndex, totalQ - 1) - resolvedSection.startIndex + 1 }, (_, i) => {
+          const qIdx = resolvedSection.startIndex + i;
           const m = meta[qIdx];
+          if (!m) return null;
           const isCurrent = qIdx === currentQ;
           const { bg, border, text } = STATE_COLORS[m.state] || STATE_COLORS['not-visited'];
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Pressable, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, Pressable, RefreshControl, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MotiView } from 'moti';
 import {
@@ -52,7 +52,7 @@ const colorMap: Record<string, string> = {
 
 export default function DashboardScreen() {
   const router = useRouter();
-  const { colors, shadows } = useTheme();
+  const { colors, shadows, isDark } = useTheme();
   const dispatch = useAppDispatch();
   const { dueQuestions } = useAppSelector((state) => state.neuronz);
   const insets = useSafeAreaInsets();
@@ -141,6 +141,10 @@ export default function DashboardScreen() {
     { Icon: Sparkles, label: 'Learn', sub: 'AI Path', path: '/(auth)/learning-paths', color: colors.warning },
     { Icon: Star, label: 'Doubts', sub: 'Forum', path: '/(auth)/doubts', color: colors.success },
   ];
+  const quickActionsGap = 12;
+  const quickActionsRow1 = [quickActions[0], quickActions[1], quickActions[2]];
+  const quickActionsRow2 = [quickActions[3], quickActions[4], quickActions[5]];
+  const quickActionsRow3 = [quickActions[6], quickActions[7], quickActions[8]];
 
   // Same study resources as web
   const studyResources = [
@@ -172,31 +176,38 @@ export default function DashboardScreen() {
   }
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={{ paddingTop: insets.top + 8, paddingHorizontal: 16, paddingBottom: 112 }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* ── Header ── matches web structure */}
-      <MotiView
-        from={{ opacity: 0, translateY: 16 }}
-        animate={{ opacity: 1, translateY: 0 }}
-        transition={{ type: 'timing', duration: 400 }}
-        style={{ marginBottom: 24 }}
-      >
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      {/* ── Sticky Header ── */}
+      <View style={{
+        paddingTop: insets.top,
+        paddingHorizontal: 16,
+        paddingBottom: 4,
+        backgroundColor: isDark ? colors.background : '#ffffff',
+        borderBottomWidth: 1,
+        borderBottomColor: isDark ? colors.border + '20' : colors.border,
+        zIndex: 10,
+      }}>
+        <MotiView
+          from={{ opacity: 0, translateY: -16 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'timing', duration: 400 }}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingVertical: 4
+          }}
+        >
           <View>
             <Text style={{ fontSize: 24, fontWeight: '800', color: colors.primary, fontFamily: 'PlusJakartaSans_800ExtraBold' }}>
               NEETFORGE
             </Text>
-            <Text style={{ fontSize: 13, color: colors.mutedForeground, marginTop: 2, fontFamily: 'Inter_400Regular' }}>
+            <Text style={{ fontSize: 12, color: colors.mutedForeground, marginTop: -2, fontFamily: 'Inter_400Regular' }}>
               Let's crush today's goals 💪
             </Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <ThemeToggle />
-            {/* Avatar button — same as web (initials → navigate /profile) */}
             <Pressable
               onPress={() => router.push('/(auth)/(tabs)/profile' as any)}
               style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
@@ -205,23 +216,36 @@ export default function DashboardScreen() {
                 colors={[...gradients.primary]}
                 start={gradientProps.start}
                 end={gradientProps.end}
-                style={{ width: 40, height: 40, borderRadius: 22, alignItems: 'center', justifyContent: 'center' }}
+                style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' }}
               >
                 <Text style={{ fontSize: 14, fontWeight: '700', color: '#fff', fontFamily: 'Inter_700Bold' }}>A</Text>
               </LinearGradient>
             </Pressable>
           </View>
-        </View>
+        </MotiView>
+      </View>
 
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 112, paddingTop: 16 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+        showsVerticalScrollIndicator={false}
+      >
         {/* ── Stats Row (3 cols) ── same as web: Streak / Score / Rank */}
-        <View style={{ flexDirection: 'row', gap: 12 }}>
+        <MotiView
+          // from={{ opacity: 0, translateY: 16 }}
+          // animate={{ opacity: 1, translateY: 0 }}
+          // transition={{ type: 'timing', duration: 400, delay: 100 }}
+          style={{ flexDirection: 'row', gap: 12, marginBottom: 24 }}
+        >
           {[
             { Icon: Flame, value: userStreak || userRank?.streak || 0, label: 'Streak', color: colors.warning },
             { Icon: Star, value: userRank?.totalXP || 0, label: 'Score', color: colors.secondary },
             { Icon: Trophy, value: `#${userRank?.rank || '—'}`, label: 'Rank', color: colors.primary },
+
           ].map((stat, i) => (
             <View
-              key={i}
+              key={stat.label}
               style={{
                 flex: 1,
                 backgroundColor: colors.card,
@@ -249,227 +273,259 @@ export default function DashboardScreen() {
               </Text>
             </View>
           ))}
-        </View>
-      </MotiView>
+        </MotiView>
 
-      {/* ── Study Stats Overview (Today's Progress) ── same as web */}
-      <MotiView
-        from={{ opacity: 0, translateY: 16 }}
-        animate={{ opacity: 1, translateY: 0 }}
-        transition={{ type: 'timing', duration: 400, delay: 200 }}
-        style={{
-          backgroundColor: colors.card,
-          borderRadius: 20,
-          borderWidth: 1,
-          borderColor: colors.border,
-          padding: 16,
-          marginBottom: 16,
-          ...shadows.card,
-        }}
-      >
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-          <Zap size={16} color={colors.warning} />
-          <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold', textTransform: 'uppercase', letterSpacing: 1 }}>
-            Today's Progress
-          </Text>
-        </View>
-
-        {/* Primary 3-stat grid */}
-        <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
-          {[
-            { value: todayProgress?.formattedStudyTime || `${todayProgress.studyTimeMinutes}m`, label: 'Study Time', color: colors.primary },
-            { value: String(todayProgress.questionsAttempted || 0), label: 'Questions', color: colors.success },
-            { value: `${todayProgress.accuracy || 0}%`, label: 'Accuracy', color: colors.warning },
-          ].map((s, i) => (
-            <View key={i} style={{ flex: 1, alignItems: 'center' }}>
-              <Text style={{ fontSize: 20, fontWeight: '800', color: s.color, fontFamily: 'Inter_700Bold' }}>{s.value}</Text>
-              <Text style={{ fontSize: 10, color: colors.mutedForeground, marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>{s.label}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* Secondary stats row — same conditional as web */}
-        {((todayProgress.chaptersCovered ?? 0) > 0 || (todayProgress.resourcesViewedToday ?? 0) > 0) && (
-          <View style={{ flexDirection: 'row', gap: 8, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border }}>
-            {(todayProgress.chaptersCovered ?? 0) > 0 && (
-              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.primary + '14', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 8 }}>
-                <BookOpen size={14} color={colors.primary} />
-                <View>
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: colors.primary, fontFamily: 'Inter_700Bold' }}>{todayProgress.chaptersCovered}</Text>
-                  <Text style={{ fontSize: 10, color: colors.mutedForeground }}>chapters</Text>
-                </View>
-              </View>
-            )}
-            {(todayProgress.resourcesViewedToday ?? 0) > 0 && (
-              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.warning + '14', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 8 }}>
-                <Crown size={14} color={colors.warning} />
-                <View>
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: colors.warning, fontFamily: 'Inter_700Bold' }}>{todayProgress.resourcesViewedToday}</Text>
-                  <Text style={{ fontSize: 10, color: colors.mutedForeground }}>resources</Text>
-                </View>
-              </View>
-            )}
-            {(todayProgress.topperStudyMinutes ?? 0) > 0 && (
-              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.success + '14', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 8 }}>
-                <Star size={14} color={colors.success} />
-                <View>
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: colors.success, fontFamily: 'Inter_700Bold' }}>{todayProgress.topperStudyMinutes}m</Text>
-                  <Text style={{ fontSize: 10, color: colors.mutedForeground }}>toppers</Text>
-                </View>
-              </View>
-            )}
-          </View>
-        )}
-      </MotiView>
-
-      {/* ── Daily Challenge Card ── same position as web */}
-      <DailyChallengeCard />
-
-      {/* ── Quick Actions ── same 3-col grid as web */}
-      <MotiView
-        from={{ opacity: 0, translateY: 16 }}
-        animate={{ opacity: 1, translateY: 0 }}
-        transition={{ type: 'timing', duration: 400, delay: 300 }}
-        style={{ marginTop: 24 }}
-      >
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-          <Zap size={16} color={colors.warning} />
-          <Text style={{ fontSize: 16, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold', textTransform: 'uppercase', letterSpacing: 1 }}>
-            Quick Actions
-          </Text>
-        </View>
-        <View
+        {/* ── Study Stats Overview (Today's Progress) ── same as web */}
+        <MotiView
+          // from={{ opacity: 0, translateY: 16 }}
+          // animate={{ opacity: 1, translateY: 0 }}
+          // transition={{ type: 'timing', duration: 400, delay: 200 }}
           style={{
-            flexDirection: 'row',
-            flexWrap: 'wrap',
-            gap: 15,
-            width: '100%',
+            backgroundColor: colors.card,
+            borderRadius: 20,
+            borderWidth: 1,
+            borderColor: colors.border,
+            padding: 16,
+            marginBottom: 16,
+            ...shadows.card,
           }}
         >
-          {quickActions.map((action) => (
-            <Pressable
-              key={action.label}
-              onPress={() => router.push(action.path as any)}
-              style={({ pressed }) => ({
-                minWidth: '30.33%',
-                width: '30.33%',
-                paddingHorizontal: 6,
-                marginBottom: 10,
-                opacity: pressed ? 0.7 : 1,
-              })}
-            >
-              <GlassCard
-                style={{
-                  alignItems: 'center',
-                  width: 115,
-                  justifyContent: 'center',
-                  minHeight: 120,
-                }}
-              >
-                <View
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+            <Zap size={16} color={colors.warning} />
+            <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold', textTransform: 'uppercase', letterSpacing: 1 }}>
+              Today's Progress
+            </Text>
+          </View>
+
+          {/* Primary 3-stat grid */}
+          <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
+            {[
+              { value: todayProgress?.formattedStudyTime || `${todayProgress.studyTimeMinutes}m`, label: 'Study Time', color: colors.primary },
+              { value: String(todayProgress.questionsAttempted || 0), label: 'Questions', color: colors.success },
+              { value: `${todayProgress.accuracy || 0}%`, label: 'Accuracy', color: colors.warning },
+            ].map((s, i) => (
+              <View key={i} style={{ flex: 1, alignItems: 'center' }}>
+                <Text style={{ fontSize: 20, fontWeight: '800', color: s.color, fontFamily: 'Inter_700Bold' }}>{s.value}</Text>
+                <Text style={{ fontSize: 10, color: colors.mutedForeground, marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>{s.label}</Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Secondary stats row — same conditional as web */}
+          {((todayProgress.chaptersCovered ?? 0) > 0 || (todayProgress.resourcesViewedToday ?? 0) > 0) && (
+            <View style={{ flexDirection: 'row', gap: 8, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border }}>
+              {(todayProgress.chaptersCovered ?? 0) > 0 && (
+                <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.primary + '14', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 8 }}>
+                  <BookOpen size={14} color={colors.primary} />
+                  <View>
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: colors.primary, fontFamily: 'Inter_700Bold' }}>{todayProgress.chaptersCovered}</Text>
+                    <Text style={{ fontSize: 10, color: colors.mutedForeground }}>chapters</Text>
+                  </View>
+                </View>
+              )}
+              {(todayProgress.resourcesViewedToday ?? 0) > 0 && (
+                <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.warning + '14', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 8 }}>
+                  <Crown size={14} color={colors.warning} />
+                  <View>
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: colors.warning, fontFamily: 'Inter_700Bold' }}>{todayProgress.resourcesViewedToday}</Text>
+                    <Text style={{ fontSize: 10, color: colors.mutedForeground }}>resources</Text>
+                  </View>
+                </View>
+              )}
+              {(todayProgress.topperStudyMinutes ?? 0) > 0 && (
+                <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.success + '14', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 8 }}>
+                  <Star size={14} color={colors.success} />
+                  <View>
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: colors.success, fontFamily: 'Inter_700Bold' }}>{todayProgress.topperStudyMinutes}m</Text>
+                    <Text style={{ fontSize: 10, color: colors.mutedForeground }}>toppers</Text>
+                  </View>
+                </View>
+              )}
+            </View>
+          )}
+        </MotiView>
+
+        {/* ── Daily Challenge Card ── same position as web */}
+        <DailyChallengeCard />
+
+        {/* ── Quick Actions ── same 3-col grid as web */}
+        <MotiView
+          // from={{ opacity: 0, translateY: 16 }}
+          // animate={{ opacity: 1, translateY: 0 }}
+          // transition={{ type: 'timing', duration: 400, delay: 300 }}
+          style={{ marginTop: 24 }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 15 }}>
+            <Zap size={16} color={colors.warning} />
+            <Text style={{ fontSize: 16, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold', textTransform: 'uppercase', letterSpacing: 1 }}>
+              Quick Actions
+            </Text>
+          </View>
+          <View style={{ width: '100%' }}>
+            <View style={{ flexDirection: 'row', gap: quickActionsGap, marginBottom: quickActionsGap }}>
+              {quickActionsRow1.map((action) => (
+                <TouchableOpacity
+                  onPress={() => router.push(action.path as any)}
+                  activeOpacity={0.8}
                   style={{
-                    width: 42,
-                    height: 42,
-                    borderRadius: 21,
-                    backgroundColor: action.color + '15',
+                    flex: 1,
+                    backgroundColor: colors.card,
+                    borderRadius: 20,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                    paddingVertical: 14,
+                    alignItems: 'center',
+                    gap: 6,
+                    ...shadows.card,
+                  }}
+                >
+                  <View style={{
+                    width: 38, height: 38, borderRadius: 22,
+                    backgroundColor: action.color + '20',
+                    alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <action.Icon size={18} color={action.color} />
+                  </View>
+                  <Text style={{ fontSize: 13, fontWeight: '800', color: colors.foreground, fontFamily: 'Inter_700Bold' }}>
+                    {action.label}
+                  </Text>
+                  <Text style={{ fontSize: 10, marginTop: -4, color: colors.mutedForeground, fontFamily: 'Inter_500Medium', letterSpacing: 0.5 }}>
+                    {action.sub}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: quickActionsGap, marginBottom: quickActionsGap }}>
+              {quickActionsRow2.map((action) => (
+                <TouchableOpacity
+                  onPress={() => router.push(action.path as any)}
+                  activeOpacity={0.8}
+                  style={{
+                    flex: 1,
+                    backgroundColor: colors.card,
+                    borderRadius: 20,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                    paddingVertical: 14,
+                    alignItems: 'center',
+                    gap: 6,
+                    ...shadows.card,
+                  }}
+                >
+                  <View style={{
+                    width: 38, height: 38, borderRadius: 22,
+                    backgroundColor: action.color + '20',
+                    alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <action.Icon size={18} color={action.color} />
+                  </View>
+                  <Text style={{ fontSize: 13, fontWeight: '800', color: colors.foreground, fontFamily: 'Inter_700Bold' }}>
+                    {action.label}
+                  </Text>
+                  <Text style={{ fontSize: 10, marginTop: -4, color: colors.mutedForeground, fontFamily: 'Inter_500Medium', letterSpacing: 0.5 }}>
+                    {action.sub}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: quickActionsGap }}>
+              {quickActionsRow3.map((action) => (
+                <TouchableOpacity
+                  onPress={() => router.push(action.path as any)}
+                  activeOpacity={0.8}
+                  style={{
+                    flex: 1,
+                    backgroundColor: colors.card,
+                    borderRadius: 20,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                    paddingVertical: 14,
+                    alignItems: 'center',
+                    gap: 6,
+                    ...shadows.card,
+                  }}
+                >
+                  <View style={{
+                    width: 38, height: 38, borderRadius: 22,
+                    backgroundColor: action.color + '20',
+                    alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <action.Icon size={18} color={action.color} />
+                  </View>
+                  <Text style={{ fontSize: 13, fontWeight: '800', color: colors.foreground, fontFamily: 'Inter_700Bold' }}>
+                    {action.label}
+                  </Text>
+                  <Text style={{ fontSize: 10, marginTop: -4, color: colors.mutedForeground, fontFamily: 'Inter_500Medium', letterSpacing: 0.5 }}>
+                    {action.sub}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </MotiView>
+
+        {/* ── Study Resources ── same card list as web */}
+        <MotiView
+          // from={{ opacity: 0, translateY: 16 }}
+          // animate={{ opacity: 1, translateY: 0 }}
+          // transition={{ type: 'timing', duration: 400, delay: 400 }}
+          style={{ marginTop: 24 }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <BookMarked size={16} color={colors.primary} />
+            <Text style={{ fontSize: 15, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold', textTransform: 'uppercase', letterSpacing: 1 }}>
+              Study Resources
+            </Text>
+          </View>
+          <View style={{ gap: 12 }}>
+            {studyResources.map((resource, idx) => (
+              <Pressable
+                key={idx}
+                onPress={() => resource.path ? router.push(resource.path as any) : null}
+                disabled={!resource.path}
+                style={({ pressed }) => ({
+                  opacity: pressed ? 0.8 : 1,
+                })}
+              >
+                <GlassCard style={{ flexDirection: 'row', alignItems: 'center', padding: 14 }}>
+                  <View style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 14,
+                    backgroundColor: resource.color + '15',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    marginBottom: 8,
-                  }}
-                >
-                  <action.Icon size={18} color={action.color} />
-                </View>
+                    marginRight: 14
+                  }}>
+                    <resource.Icon size={22} color={resource.color} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold' }}>
+                      {resource.title}
+                    </Text>
+                    <Text style={{ fontSize: 12, color: colors.mutedForeground, fontFamily: 'Inter_400Regular', marginTop: 2 }}>
+                      {resource.description}
+                    </Text>
+                  </View>
+                  <ChevronRight size={18} color={colors.mutedForeground} />
+                </GlassCard>
+              </Pressable>
+            ))}
+          </View>
+        </MotiView>
 
-                <Text
-                  numberOfLines={1}
-                  style={{
-                    fontSize: 13,
-                    fontWeight: '700',
-                    color: colors.foreground,
-                    fontFamily: 'Inter_700Bold',
-                    textAlign: 'center',
-                  }}
-                >
-                  {action.label}
-                </Text>
-
-                <Text
-                  numberOfLines={1}
-                  style={{
-                    fontSize: 10,
-                    color: colors.mutedForeground,
-                    fontFamily: 'Inter_400Regular',
-                    textAlign: 'center',
-                    marginTop: 2,
-                  }}
-                >
-                  {action.sub}
-                </Text>
-              </GlassCard>
-            </Pressable>
-          ))}
+        {/* ── Active Challenges ── same position as web */}
+        <View style={{ marginTop: 24 }}>
+          <ActiveChallenges />
         </View>
-      </MotiView>
 
-      {/* ── Study Resources ── same card list as web */}
-      <MotiView
-        from={{ opacity: 0, translateY: 16 }}
-        animate={{ opacity: 1, translateY: 0 }}
-        transition={{ type: 'timing', duration: 400, delay: 400 }}
-        style={{ marginTop: 24 }}
-      >
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-          <BookMarked size={16} color={colors.primary} />
-          <Text style={{ fontSize: 15, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold', textTransform: 'uppercase', letterSpacing: 1 }}>
-            Study Resources
-          </Text>
+        {/* ── Revision Widget ── same position as web (last item) */}
+        <View style={{ marginTop: 16 }}>
+          <RevisionWidget />
         </View>
-        <View style={{ gap: 12 }}>
-          {studyResources.map((resource, idx) => (
-            <Pressable
-              key={idx}
-              onPress={() => resource.path ? router.push(resource.path as any) : null}
-              disabled={!resource.path}
-              style={({ pressed }) => ({
-                opacity: pressed ? 0.8 : 1,
-              })}
-            >
-              <GlassCard style={{ flexDirection: 'row', alignItems: 'center', padding: 14 }}>
-                <View style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 14,
-                  backgroundColor: resource.color + '15',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginRight: 14
-                }}>
-                  <resource.Icon size={22} color={resource.color} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 15, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold' }}>
-                    {resource.title}
-                  </Text>
-                  <Text style={{ fontSize: 12, color: colors.mutedForeground, fontFamily: 'Inter_400Regular', marginTop: 2 }}>
-                    {resource.description}
-                  </Text>
-                </View>
-                <ChevronRight size={18} color={colors.mutedForeground} />
-              </GlassCard>
-            </Pressable>
-          ))}
-        </View>
-      </MotiView>
-
-      {/* ── Active Challenges ── same position as web */}
-      <View style={{ marginTop: 24 }}>
-        <ActiveChallenges />
-      </View>
-
-      {/* ── Revision Widget ── same position as web (last item) */}
-      <View style={{ marginTop: 16 }}>
-        <RevisionWidget />
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </View >
   );
 }

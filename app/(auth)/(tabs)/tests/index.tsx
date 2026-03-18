@@ -371,7 +371,7 @@ export default function TestsIndexScreen() {
           <View style={{ gap: 10 }}>
             {activeMainTab === 'all' && !search && (
               <MotiView from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }}>
-                <Pressable onPress={() => router.push('/(auth)/test/custom')} style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}>
+                <Pressable onPress={() => router.push('/(auth)/test/custom-create')} style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}>
                   <View style={{ width: '100%', borderRadius: 22, borderWidth: 2, borderColor: colors.primary + '66', backgroundColor: colors.primary + '0D', padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                     <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.primary + '26', alignItems: 'center', justifyContent: 'center' }}>
                       <Zap size={20} color={colors.primary} />

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, Pressable, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowLeft, Wand2, Play, Clock, ChevronRight, Trophy } from 'lucide-react-native';
+import { ArrowLeft, Wand2, Play, Clock, ChevronRight, Trophy, RotateCcw } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import apiService from '@/lib/apiService';
 import { GlassCard } from '@/components/ui/GlassCard';
@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/Button';
 export default function QuizIndexScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
 
   const [quizzes, setQuizzes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,7 +23,7 @@ export default function QuizIndexScreen() {
     try {
       const res = await apiService.quizGenerator.getUserQuizzes(1, 20);
       if (res.data?.success) {
-        setQuizzes(res.data.data?.quizzes || []);
+        setQuizzes(res.data.data || []);
       }
     } catch {} finally {
       setLoading(false);
@@ -40,18 +40,52 @@ export default function QuizIndexScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <View style={{ paddingTop: insets.top, paddingHorizontal: 16 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 12 }}>
-          <Pressable onPress={() => router.back()} style={{ padding: 8 }}>
-            <ArrowLeft size={24} color={colors.foreground} />
-          </Pressable>
-          <Text style={{ flex: 1, fontSize: 18, fontWeight: '700', color: colors.foreground, fontFamily: 'PlusJakartaSans_700Bold' }}>
-            My Quizzes
-          </Text>
+      {/* ── Sticky Header ── */}
+      <View style={{
+        paddingTop: insets.top,
+        paddingHorizontal: 16,
+        paddingBottom: 4,
+        backgroundColor: isDark ? colors.background : '#ffffff',
+        borderBottomWidth: 1,
+        borderBottomColor: isDark ? colors.border + '20' : colors.border,
+        zIndex: 10,
+      }}>
+        <View style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingVertical: 8
+        }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <Pressable
+              onPress={() => router.back()}
+              style={({ pressed }) => ({
+                width: 40,
+                height: 40,
+                borderRadius: 12,
+                backgroundColor: colors.card,
+                borderWidth: 1,
+                borderColor: colors.border,
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: pressed ? 0.7 : 1
+              })}
+            >
+              <ArrowLeft size={20} color={colors.foreground} />
+            </Pressable>
+            <View>
+              <Text style={{ fontSize: 18, fontWeight: '700', color: colors.foreground, fontFamily: 'PlusJakartaSans_700Bold' }}>
+                My Quizzes
+              </Text>
+              <Text style={{ fontSize: 12, color: colors.mutedForeground, marginTop: -2, fontFamily: 'Inter_400Regular' }}>
+                Review your progress
+              </Text>
+            </View>
+          </View>
           <Button size="sm" onPress={() => router.push('/(auth)/quiz/generator' as any)}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Wand2 size={16} color="#fff" />
-              <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>Generate</Text>
+              <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>New</Text>
             </View>
           </Button>
         </View>
@@ -116,7 +150,20 @@ export default function QuizIndexScreen() {
                       {quiz.level && <Badge variant="primary">L{quiz.level}</Badge>}
                     </View>
                   </View>
-                  <ChevronRight size={20} color={colors.mutedForeground} />
+                  <Pressable 
+                    onPress={() => router.push({ pathname: '/(auth)/ai-quiz-session', params: { quizId: quiz._id } } as any)}
+                    style={({ pressed }) => ({
+                      width: 36,
+                      height: 36,
+                      borderRadius: 10,
+                      backgroundColor: colors.primary + '10',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      opacity: pressed ? 0.7 : 1
+                    })}
+                  >
+                    <RotateCcw size={18} color={colors.primary} />
+                  </Pressable>
                 </GlassCard>
               </Pressable>
             ))}

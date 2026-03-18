@@ -80,11 +80,11 @@ export default function QuizSessionScreen() {
     try {
       if (params.topicId) {
         const formattedAnswers = questions.map((q: any, i: number) => ({
-          questionId: q._id,
+          questionId: q.questionId || q._id,
           selectedOption: answers[i],
         }));
         await apiService.ncertSearch.submitTopicQuiz(params.topicId, {
-          questionIds: questions.map((q: any) => q._id),
+          questionIds: questions.map((q: any) => q.questionId || q._id).filter(Boolean),
           answers: formattedAnswers,
           timeTaken: elapsed,
         });

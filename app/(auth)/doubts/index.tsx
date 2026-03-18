@@ -46,7 +46,7 @@ function DoubtCard({ doubt, onClick, colors, shadows }: { doubt: DoubtItem; onCl
   };
 
   return (
-    <Pressable onPress={onClick} style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1, marginBottom: 12 })}>
+    <Pressable onPress={onClick} style={{ opacity: 1, marginBottom: 12 }}>
       <View style={{
         backgroundColor: colors.card,
         borderRadius: 20,
@@ -108,11 +108,11 @@ export default function DoubtForumScreen() {
   const [doubts, setDoubts] = useState<DoubtItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [subject, setSubject] = useState<SubjectFilter>('all');
   const [search, setSearch] = useState('');
   const [showResolved, setShowResolved] = useState(false);
-  
+
   // Modal State
   const [showCreate, setShowCreate] = useState(false);
   const [createTitle, setCreateTitle] = useState('');
@@ -129,7 +129,7 @@ export default function DoubtForumScreen() {
       if (subject !== 'all') params.set('subject', subject);
       if (q?.trim()) params.set('search', q.trim());
       if (showResolved) params.set('isResolved', 'true');
-      
+
       const res = await apiService.doubts.getDoubts(Object.fromEntries(params.entries()));
       setDoubts(res.data?.data || res.data || []);
     } catch {
@@ -164,18 +164,18 @@ export default function DoubtForumScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       {/* Header (Sticky) */}
-      <View style={{ 
-        paddingTop: insets.top, 
-        backgroundColor: colors.background, 
-        borderBottomWidth: 1, 
+      <View style={{
+        paddingTop: insets.top,
+        backgroundColor: colors.background,
+        borderBottomWidth: 1,
         borderBottomColor: colors.border,
-        zIndex: 10 
+        zIndex: 10
       }}>
         <View style={{ paddingHorizontal: 16, paddingVertical: 12 }}>
           {/* Top Row */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-            <Pressable 
-              onPress={() => router.back()} 
+            <Pressable
+              onPress={() => router.back()}
               style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}
             >
               <ArrowLeft size={16} color={colors.foreground} />
@@ -193,10 +193,10 @@ export default function DoubtForumScreen() {
             </View>
             <Pressable
               onPress={() => setShowCreate(true)}
-              style={({ pressed }) => ({
+              style={{
                 height: 36, paddingHorizontal: 12, borderRadius: 12, backgroundColor: colors.primary,
-                flexDirection: 'row', alignItems: 'center', gap: 6, opacity: pressed ? 0.8 : 1
-              })}
+                flexDirection: 'row', alignItems: 'center', gap: 6, opacity: 1
+              }}
             >
               <Plus size={16} color="#fff" />
               <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700', fontFamily: 'Inter_700Bold' }}>Ask</Text>
@@ -204,9 +204,9 @@ export default function DoubtForumScreen() {
           </View>
 
           {/* Search Row */}
-          <View style={{ 
-            flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, 
-            borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 12, height: 44 
+          <View style={{
+            flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card,
+            borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 12, height: 44
           }}>
             <Search size={16} color={colors.mutedForeground} style={{ marginRight: 8 }} />
             <TextInput
@@ -230,9 +230,9 @@ export default function DoubtForumScreen() {
                   borderColor: subject === s ? colors.primary : colors.border,
                 }}
               >
-                <Text style={{ 
+                <Text style={{
                   fontSize: 12, fontWeight: '600', textTransform: 'capitalize', fontFamily: 'Inter_600SemiBold',
-                  color: subject === s ? '#fff' : colors.mutedForeground 
+                  color: subject === s ? '#fff' : colors.mutedForeground
                 }}>
                   {s === 'all' ? 'All' : s}
                 </Text>
@@ -248,9 +248,9 @@ export default function DoubtForumScreen() {
               }}
             >
               <CheckCircle2 size={12} color={showResolved ? '#fff' : colors.mutedForeground} />
-              <Text style={{ 
+              <Text style={{
                 fontSize: 12, fontWeight: '600', fontFamily: 'Inter_600SemiBold',
-                color: showResolved ? '#fff' : colors.mutedForeground 
+                color: showResolved ? '#fff' : colors.mutedForeground
               }}>
                 Resolved
               </Text>
@@ -294,9 +294,9 @@ export default function DoubtForumScreen() {
             {doubts.map((d, index) => (
               <MotiView
                 key={d._id}
-                from={{ opacity: 0, translateY: 10 }}
-                animate={{ opacity: 1, translateY: 0 }}
-                transition={{ delay: index * 50 }}
+              // from={{ opacity: 0, translateY: 10 }}
+              // animate={{ opacity: 1, translateY: 0 }}
+              // transition={{ delay: index * 50 }}
               >
                 <DoubtCard doubt={d} onClick={() => router.push(`/(auth)/doubts/${d._id}` as any)} colors={colors} shadows={shadows} />
               </MotiView>
@@ -308,9 +308,9 @@ export default function DoubtForumScreen() {
       {/* Create Doubt Modal */}
       <Modal visible={showCreate} animationType="slide" transparent={true} onRequestClose={() => setShowCreate(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <View style={{ 
-            backgroundColor: colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, 
-            padding: 20, paddingBottom: insets.bottom + 20 
+          <View style={{
+            backgroundColor: colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+            padding: 20, paddingBottom: insets.bottom + 20
           }}>
             <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: colors.muted, alignSelf: 'center', marginBottom: 16 }} />
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
@@ -339,9 +339,9 @@ export default function DoubtForumScreen() {
                   }}
                 >
                   <Text style={{ fontSize: 14 }}>{subjectEmoji[s]}</Text>
-                  <Text style={{ 
+                  <Text style={{
                     fontSize: 13, fontWeight: '600', textTransform: 'capitalize', fontFamily: 'Inter_600SemiBold',
-                    color: createSubject === s ? '#fff' : colors.mutedForeground 
+                    color: createSubject === s ? '#fff' : colors.mutedForeground
                   }}>
                     {s}
                   </Text>
@@ -354,9 +354,9 @@ export default function DoubtForumScreen() {
               onChangeText={setCreateTitle}
               placeholder="Short title for your doubt..."
               placeholderTextColor={colors.mutedForeground}
-              style={{ 
-                backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, 
-                borderRadius: 12, padding: 14, fontSize: 14, color: colors.foreground, fontFamily: 'Inter_400Regular', marginBottom: 12 
+              style={{
+                backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border,
+                borderRadius: 12, padding: 14, fontSize: 14, color: colors.foreground, fontFamily: 'Inter_400Regular', marginBottom: 12
               }}
             />
 
@@ -367,10 +367,10 @@ export default function DoubtForumScreen() {
               placeholderTextColor={colors.mutedForeground}
               multiline
               numberOfLines={4}
-              style={{ 
-                backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, 
-                borderRadius: 12, padding: 14, fontSize: 14, color: colors.foreground, fontFamily: 'Inter_400Regular', 
-                minHeight: 100, textAlignVertical: 'top', marginBottom: 20 
+              style={{
+                backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border,
+                borderRadius: 12, padding: 14, fontSize: 14, color: colors.foreground, fontFamily: 'Inter_400Regular',
+                minHeight: 100, textAlignVertical: 'top', marginBottom: 20
               }}
             />
 

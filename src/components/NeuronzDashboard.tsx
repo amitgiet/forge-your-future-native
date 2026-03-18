@@ -6,6 +6,8 @@ import { Brain, ArrowRight, Lock, Zap, Trophy } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { loadDueQuestions, getMasteryProgress } from '@/store/slices/neuronzSlice';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { StatIcon } from '@/components/ui/StatIcon';
 
 // Matches web exactly
 const LEVEL_CONFIG = [
@@ -48,35 +50,13 @@ const NeuronzDashboard: React.FC = () => {
 
   return (
     <View style={{ gap: 20 }}>
-      {/* Header — matches web: w-11 h-11 rounded-2xl bg-primary */}
-      <MotiView
-        from={{ opacity: 0, translateY: -10 }}
-        animate={{ opacity: 1, translateY: 0 }}
-        transition={{ type: 'timing', duration: 300 }}
-        style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}
-      >
-        <View style={{
-          width: 44, height: 44, borderRadius: 16,
-          backgroundColor: colors.primary,
-          alignItems: 'center', justifyContent: 'center',
-        }}>
-          <Brain size={24} color="#fff" />
-        </View>
-        <View>
-          <Text style={{ fontSize: 20, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold' }}>
-            NeuronZ
-          </Text>
-          <Text style={{ fontSize: 12, color: colors.mutedForeground, fontFamily: 'Inter_400Regular' }}>
-            Spaced Repetition System
-          </Text>
-        </View>
-      </MotiView>
+      {/* Header removed as it is now sticky in the parent screen */}
 
       {/* Info banner — matches web: bg-primary/5 border border-primary/15 */}
       <MotiView
-        from={{ opacity: 0, translateY: 10 }}
-        animate={{ opacity: 1, translateY: 0 }}
-        transition={{ type: 'timing', duration: 300, delay: 100 }}
+        // from={{ opacity: 0, translateY: 10 }}
+        // animate={{ opacity: 1, translateY: 0 }}
+        // transition={{ type: 'timing', duration: 300, delay: 100 }}
         style={{
           backgroundColor: colors.primary + '0D',
           borderWidth: 1,
@@ -97,42 +77,37 @@ const NeuronzDashboard: React.FC = () => {
 
       {/* Progress Card */}
       <MotiView
-        from={{ opacity: 0, translateY: 10 }}
-        animate={{ opacity: 1, translateY: 0 }}
-        transition={{ type: 'timing', duration: 300, delay: 150 }}
-        style={{
-          backgroundColor: colors.card,
-          borderRadius: 16,
-          borderWidth: 1,
-          borderColor: colors.border,
-          padding: 16,
-        }}
+      // from={{ opacity: 0, translateY: 10 }}
+      // animate={{ opacity: 1, translateY: 0 }}
+      // transition={{ type: 'timing', duration: 300, delay: 150 }}
       >
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Trophy size={16} color={colors.primary} />
-            <Text style={{ fontSize: 14, fontWeight: '600', color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
-              Overall Progress
+        <GlassCard>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Trophy size={16} color={colors.primary} />
+              <Text style={{ fontSize: 14, fontWeight: '600', color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
+                Overall Progress
+              </Text>
+            </View>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: colors.primary, fontFamily: 'Inter_700Bold' }}>
+              {totalCompleted}
+              <Text style={{ fontSize: 12, fontWeight: '500', color: colors.mutedForeground }}>/{totalTarget}</Text>
             </Text>
           </View>
-          <Text style={{ fontSize: 18, fontWeight: '700', color: colors.primary, fontFamily: 'Inter_700Bold' }}>
-            {totalCompleted}
-            <Text style={{ fontSize: 12, fontWeight: '500', color: colors.mutedForeground }}>/{totalTarget}</Text>
-          </Text>
-        </View>
 
-        {/* Progress bar */}
-        <View style={{ height: 10, width: '100%', backgroundColor: colors.secondary + '40', borderRadius: 9999, overflow: 'hidden' }}>
-          <MotiView
-            from={{ width: '0%' }}
-            animate={{ width: `${progressPercent}%` }}
-            transition={{ type: 'timing', duration: 1000, delay: 300 }}
-            style={{ height: '100%', backgroundColor: colors.primary, borderRadius: 9999 }}
-          />
-        </View>
-        <Text style={{ fontSize: 11, color: colors.mutedForeground, marginTop: 8, fontFamily: 'Inter_400Regular' }}>
-          {progressPercent.toFixed(0)}% mastered · Keep practicing to build strong memory
-        </Text>
+          {/* Progress bar */}
+          <View style={{ height: 10, width: '100%', backgroundColor: colors.secondary + '40', borderRadius: 9999, overflow: 'hidden' }}>
+            <MotiView
+              from={{ width: '0%' }}
+              animate={{ width: `${progressPercent}%` }}
+              transition={{ type: 'timing', duration: 1000, delay: 300 }}
+              style={{ height: '100%', backgroundColor: colors.primary, borderRadius: 9999 }}
+            />
+          </View>
+          <Text style={{ fontSize: 11, color: colors.mutedForeground, marginTop: 8, fontFamily: 'Inter_400Regular' }}>
+            {progressPercent.toFixed(0)}% mastered · Keep practicing to build strong memory
+          </Text>
+        </GlassCard>
       </MotiView>
 
       {/* Level Cards */}
@@ -145,63 +120,56 @@ const NeuronzDashboard: React.FC = () => {
           return (
             <MotiView
               key={conf.level}
-              from={{ opacity: 0, translateX: -20 }}
-              animate={{ opacity: 1, translateX: 0 }}
-              transition={{ type: 'timing', duration: 300, delay: idx * 60 }}
+            // from={{ opacity: 0, translateX: -20 }}
+            // animate={{ opacity: 1, translateX: 0 }}
+            // transition={{ type: 'timing', duration: 300, delay: idx * 60 }}
             >
               <Pressable
                 onPress={() => handleLevelClick(conf.level, totalAtLevel)}
                 disabled={!isClickable}
-                style={({ pressed }) => ({
-                  backgroundColor: colors.card,
-                  borderRadius: 12,
-                  borderWidth: 1,
-                  borderColor: pressed && isClickable ? colors.primary + '60' : colors.border,
+              // style={{ opacity: isClickable ? 1 : 0.6 }}
+              >
+                <GlassCard style={{
                   padding: 16,
                   flexDirection: 'row',
                   alignItems: 'center',
                   gap: 14,
-                  opacity: isClickable ? 1 : 0.6,
-                })}
-              >
-                {/* Level indicator */}
-                <View style={{
-                  width: 40, height: 40, borderRadius: 12,
-                  backgroundColor: conf.accent,
-                  alignItems: 'center', justifyContent: 'center',
                 }}>
-                  <Text style={{ fontSize: 20 }}>{conf.emoji}</Text>
-                </View>
+                  {/* Level indicator */}
+                  <StatIcon color={conf.accent}>
+                    <Text style={{ fontSize: 20 }}>{conf.emoji}</Text>
+                  </StatIcon>
 
-                {/* Info */}
-                <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Text style={{ fontSize: 14, fontWeight: '600', color: colors.foreground, fontFamily: 'Inter_600SemiBold' }} numberOfLines={1}>
-                      L{conf.level} · {conf.name}
-                    </Text>
-                    {conf.locked && <Lock size={14} color={colors.mutedForeground} />}
-                  </View>
-                  <Text style={{ fontSize: 12, color: colors.mutedForeground, marginTop: 2, fontFamily: 'Inter_400Regular' }}>
-                    {conf.description}
-                  </Text>
-                </View>
-
-                {/* Count + Arrow */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={{ fontSize: 18, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold' }}>
-                      {totalAtLevel}
-                    </Text>
-                    <Text style={{ fontSize: 10, color: colors.mutedForeground, fontFamily: 'Inter_400Regular', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                      Questions
-                    </Text>
-                  </View>
-                  {isClickable && (
-                    <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.primary + '18', alignItems: 'center', justifyContent: 'center' }}>
-                      <ArrowRight size={16} color={colors.primary} />
+                  {/* Info */}
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Text style={{ fontSize: 14, fontWeight: '600', color: colors.foreground, fontFamily: 'Inter_600SemiBold' }} numberOfLines={1}>
+                        L{conf.level} · {conf.name}
+                      </Text>
+                      {conf.locked && <Lock size={14} color={colors.mutedForeground} />}
                     </View>
-                  )}
-                </View>
+                    <Text style={{ fontSize: 12, color: colors.mutedForeground, marginTop: 2, fontFamily: 'Inter_400Regular' }}>
+                      {conf.description}
+                    </Text>
+                  </View>
+
+                  {/* Count + Arrow */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={{ fontSize: 18, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold' }}>
+                        {totalAtLevel}
+                      </Text>
+                      <Text style={{ fontSize: 10, color: colors.mutedForeground, fontFamily: 'Inter_400Regular', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                        Questions
+                      </Text>
+                    </View>
+                    {isClickable && (
+                      <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.primary + '18', alignItems: 'center', justifyContent: 'center' }}>
+                        <ArrowRight size={16} color={colors.primary} />
+                      </View>
+                    )}
+                  </View>
+                </GlassCard>
               </Pressable>
             </MotiView>
           );

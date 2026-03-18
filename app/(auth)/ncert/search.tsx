@@ -170,20 +170,53 @@ export default function NCERTSearchScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      {/* Header */}
-      <View style={{ paddingTop: insets.top, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.card, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <Pressable onPress={() => router.back()} style={{ width: 36, height: 36, borderRadius: 13, backgroundColor: colors.muted, alignItems: 'center', justifyContent: 'center' }}>
-          <ArrowLeft size={20} color={colors.foreground} />
-        </Pressable>
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 18, fontWeight: '700', color: colors.foreground }}>NCERT Search</Text>
-          <Text style={{ fontSize: 12, color: colors.mutedForeground }}>Browse topics & practice quizzes</Text>
-        </View>
-        {topics.length > 0 && (
-          <View style={{ backgroundColor: colors.primary + '20', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 15 }}>
-            <Text style={{ fontSize: 12, fontWeight: '700', color: colors.primary }}>{attemptedCount}/{topics.length}</Text>
+      {/* ── Sticky Header ── */}
+      <View style={{
+        paddingTop: insets.top,
+        paddingHorizontal: 16,
+        paddingBottom: 4,
+        backgroundColor: colors.card,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border,
+        zIndex: 10,
+      }}>
+        <View style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingVertical: 8
+        }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <Pressable 
+              onPress={() => router.back()}
+              style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <ArrowLeft size={20} color={colors.foreground} />
+            </Pressable>
+            <View>
+              <Text style={{ fontSize: 20, fontWeight: '800', color: colors.primary, fontFamily: 'PlusJakartaSans_800ExtraBold' }}>
+                NCERT Search
+              </Text>
+              <Text style={{ fontSize: 12, color: colors.mutedForeground, marginTop: -2, fontFamily: 'Inter_400Regular' }}>
+                Browse topics & practice quizzes
+              </Text>
+            </View>
           </View>
-        )}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            {topics.length > 0 && (
+              <View style={{ backgroundColor: colors.primary + '14', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
+                <Text style={{ fontSize: 11, fontWeight: '800', color: colors.primary }}>{attemptedCount}/{topics.length}</Text>
+              </View>
+            )}
+            <View style={{
+              width: 44, height: 44, borderRadius: 16,
+              backgroundColor: colors.primary + '14',
+              alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Search size={22} color={colors.primary} />
+            </View>
+          </View>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 24 }}>

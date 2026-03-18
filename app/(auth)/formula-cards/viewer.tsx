@@ -7,7 +7,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, Pressable, ActivityIndicator, Image,
-  Dimensions, Animated, PanResponder, Modal, ScrollView, Alert
+  Dimensions, Animated, PanResponder, Modal, ScrollView, Alert, TouchableOpacity
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -46,14 +46,24 @@ export default function FormulaCardViewerScreen() {
   const [progressMap, setProgressMap] = useState<Record<string, CardProgress>>({});
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
+  const [imageLoading, setImageLoading] = useState(true);
+  const [loadingCardId, setLoadingCardId] = useState<string | null>(null);
 
   // ── Animation Refs ─────────────────────────────────────────────────────────
   const pan = useRef(new Animated.ValueXY()).current;
   const currentRef = useRef(0);
   const cardsRef = useRef<Card[]>([]);
+  const currentCardIdRef = useRef<string | null>(null);
 
   useEffect(() => { currentRef.current = current; }, [current]);
   useEffect(() => { cardsRef.current = cards; }, [cards]);
+  useEffect(() => {
+    const card = cards[current];
+    if (!card) return;
+    currentCardIdRef.current = card._id;
+    setLoadingCardId(card._id);
+    setImageLoading(!imageErrors[card._id]);
+  }, [current, cards, imageErrors]);
 
   // ── Data fetching ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -103,7 +113,6 @@ export default function FormulaCardViewerScreen() {
     }).start(() => {
       // after animation -> increment/decrement index and reset position seamlessly
       const nextIdx = direction === 'left' ? currentRef.current + 1 : currentRef.current - 1;
-      pan.setValue({ x: 0, y: 0 });
       goTo(nextIdx);
     });
   };
@@ -133,10 +142,12 @@ export default function FormulaCardViewerScreen() {
   // ── Navigation helpers ────────────────────────────────────────────────────
   const goTo = (idx: number) => {
     if (idx < 0 || idx >= cardsRef.current.length) return;
-    
-    // Snap instantly
-    pan.setValue({ x: 0, y: 0 });
+
+    setImageLoading(true);
+    setLoadingCardId(cardsRef.current[idx]?._id || null);
     setCurrent(idx);
+    // Reset pan after index switch to avoid flashing previous card at center
+    requestAnimationFrame(() => pan.setValue({ x: 0, y: 0 }));
 
     // Auto mark as learning for new card
     const nextCard = cardsRef.current[idx];
@@ -152,7 +163,7 @@ export default function FormulaCardViewerScreen() {
               [nextCard._id]: { ...(m[nextCard._id] || { isBookmarked: false }), status: 'learning' },
             }));
           })
-          .catch(() => {});
+          .catch(() => { });
       }, 500);
     }
   };
@@ -170,7 +181,7 @@ export default function FormulaCardViewerScreen() {
     }));
     try {
       await apiService.formulas.updateCardProgress(card._id, { ...updates, chapterTitle, topicTitle });
-    } catch {}
+    } catch { }
   };
 
   const toggleBookmark = () =>
@@ -181,12 +192,13 @@ export default function FormulaCardViewerScreen() {
   const renderInteractiveCard = () => {
     const card = cards[current];
     if (!card) return null;
+    const isCurrentCardLoading = loadingCardId === card._id && imageLoading;
 
     const prog = progressMap[card._id] || { status: 'unseen', isBookmarked: false };
     const borderColor =
       prog.status === 'memorized' ? 'rgba(34,197,94,0.55)' :
-      prog.status === 'need_revision' ? 'rgba(239,68,68,0.55)' :
-      colors.border;
+        prog.status === 'need_revision' ? 'rgba(239,68,68,0.55)' :
+          colors.border;
 
     const hasError = imageErrors[card._id];
 
@@ -228,16 +240,31 @@ export default function FormulaCardViewerScreen() {
             </Text>
           </View>
         ) : (
-          <Image
-            key={card._id} // Force re-render on card change
-            source={{ uri: card.imgUrl }}
-            style={{ width: '100%', height: SCREEN_HEIGHT * 0.55, minHeight: 400, resizeMode: 'contain', backgroundColor: '#ffffff' }}
-            onError={(e) => {
-              console.warn('Image failed:', card.imgUrl, 'Reason:', e.nativeEvent.error);
-              setImageErrors(prev => ({ ...prev, [card._id]: true }));
-            }}
-            onLoad={() => console.log('Image loaded:', card.imgUrl?.slice(0, 80))}
-          />
+          <View style={{ width: '100%', height: SCREEN_HEIGHT * 0.55, minHeight: 400, backgroundColor: '#ffffff', alignItems: 'center', justifyContent: 'center' }}>
+            <Image
+              key={card._id} // Force re-render on card change
+              source={{ uri: card.imgUrl }}
+              style={{ width: '100%', height: '100%', resizeMode: 'contain', backgroundColor: '#ffffff', opacity: isCurrentCardLoading ? 0 : 1 }}
+              onLoadStart={() => {
+                if (currentCardIdRef.current === card._id) setImageLoading(true);
+              }}
+              onLoadEnd={() => {
+                if (currentCardIdRef.current === card._id) setImageLoading(false);
+              }}
+              onError={(e) => {
+                console.warn('Image failed:', card.imgUrl, 'Reason:', e.nativeEvent.error);
+                if (currentCardIdRef.current === card._id) setImageLoading(false);
+                setImageErrors(prev => ({ ...prev, [card._id]: true }));
+              }}
+              onLoad={() => console.log('Image loaded:', card.imgUrl?.slice(0, 80))}
+            />
+            {isCurrentCardLoading && (
+              <View style={{ position: 'absolute', alignItems: 'center', justifyContent: 'center' }}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={{ marginTop: 8, fontSize: 12, color: colors.mutedForeground }}>Loading image...</Text>
+              </View>
+            )}
+          </View>
         )}
       </Animated.View>
     );
@@ -297,15 +324,15 @@ export default function FormulaCardViewerScreen() {
           <Pressable onPress={() => setPaletteOpen(true)} style={{ padding: 8 }} hitSlop={10}>
             <Menu size={24} color={colors.foreground} />
           </Pressable>
-          <Pressable 
+          <Pressable
             onPress={() => {
               if (router.canGoBack()) {
                 router.back();
               } else {
                 router.replace('/(auth)/(tabs)/curriculum');
               }
-            }} 
-            style={{ padding: 8, marginLeft: 2 }} 
+            }}
+            style={{ padding: 8, marginLeft: 2 }}
             hitSlop={15}
           >
             <X size={26} color={colors.foreground} />
@@ -321,16 +348,16 @@ export default function FormulaCardViewerScreen() {
         <View style={{
           position: 'absolute', top: 0, bottom: 0, left: 0, right: 0,
           flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-          paddingHorizontal: 8, pointerEvents: 'box-none', zIndex: 5
+          paddingHorizontal: 8, pointerEvents: 'box-none', zIndex: 30, elevation: 12
         }}>
           {current > 0 ? (
-            <Pressable onPress={manualGoPrev} style={{ padding: 10, backgroundColor: 'rgba(0,0,0,0.12)', borderRadius: 24 }}>
+            <Pressable onPress={manualGoPrev} style={{ padding: 10, backgroundColor: 'rgba(0,0,0,0.20)', borderRadius: 24, zIndex: 31, elevation: 13 }}>
               <ChevronLeft size={28} color={colors.foreground} />
             </Pressable>
           ) : <View style={{ width: 48 }} />}
 
           {current < cards.length - 1 ? (
-            <Pressable onPress={manualGoNext} style={{ padding: 10, backgroundColor: 'rgba(0,0,0,0.12)', borderRadius: 24 }}>
+            <Pressable onPress={manualGoNext} style={{ padding: 10, backgroundColor: 'rgba(0,0,0,0.20)', borderRadius: 24, zIndex: 31, elevation: 13 }}>
               <ChevronRight size={28} color={colors.foreground} />
             </Pressable>
           ) : <View style={{ width: 48 }} />}
@@ -399,15 +426,27 @@ export default function FormulaCardViewerScreen() {
                 const p = progressMap[c._id] || { status: 'unseen', isBookmarked: false };
                 const isCur = i === current;
                 let bg = colors.card, tc = colors.foreground, bc = colors.border;
-                if (p.status === 'learning')      { bg = '#3b82f622'; tc = '#3b82f6'; bc = '#3b82f650'; }
-                if (p.status === 'memorized')     { bg = '#22c55e22'; tc = '#22c55e'; bc = '#22c55e50'; }
+                if (p.status === 'learning') { bg = '#3b82f622'; tc = '#3b82f6'; bc = '#3b82f650'; }
+                if (p.status === 'memorized') { bg = '#22c55e22'; tc = '#22c55e'; bc = '#22c55e50'; }
                 if (p.status === 'need_revision') { bg = '#ef444422'; tc = '#ef4444'; bc = '#ef444450'; }
                 return (
-                  <Pressable key={c._id} onPress={() => { goTo(i); setPaletteOpen(false); }}
-                    style={{ width: (SCREEN_WIDTH - 32 - 40) / 5, aspectRatio: 1, borderRadius: 8, borderWidth: 2, borderColor: isCur ? colors.primary : bc, backgroundColor: isCur ? colors.primary : bg, alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ fontSize: 12, fontWeight: '700', color: isCur ? '#fff' : tc }}>{i + 1}</Text>
+                  <TouchableOpacity key={c._id} onPress={() => { goTo(i); setPaletteOpen(false); }}
+                    style={{ width: (SCREEN_WIDTH - 32 - 40) / 5, aspectRatio: 1, borderRadius: 8, borderWidth: 2, borderColor: isCur ? colors.primary : bc, backgroundColor: isCur ? colors.primary : bg, alignItems: 'center', justifyContent: 'center', marginTop: -4 }}>
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: '700',
+                        color: isCur ? '#fff' : tc,
+                        textAlign: 'center',
+                        textAlignVertical: 'center',
+                        lineHeight: 14,
+                        includeFontPadding: false,
+                      }}
+                    >
+                      {i + 1}
+                    </Text>
                     {p.isBookmarked && <View style={{ position: 'absolute', top: -4, right: -4 }}><Bookmark size={12} fill="#f59e0b" color="#f59e0b" /></View>}
-                  </Pressable>
+                  </TouchableOpacity>
                 );
               })}
             </View>

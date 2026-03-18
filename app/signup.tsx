@@ -33,113 +33,123 @@ export default function SignupScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: colors.background }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView
-        contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}
-        keyboardShouldPersistTaps="handled"
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 25}
       >
-        <GlowOrb color="#0080ff" size={500} top={-200} right={-100} opacity={0.1} />
-        <GlowOrb color="#4a42d1" size={400} bottom={-150} left={-100} opacity={0.08} />
-
-        <MotiView
-          from={{ opacity: 0, translateY: 24 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={{ duration: 600, type: 'timing' }}
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{
+            flexGrow: 1,
+            justifyContent: 'center',
+            padding: 24,
+            paddingBottom: 40,
+          }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <View style={{ alignItems: 'center', marginBottom: 24 }}>
-            <Text
-              style={{
-                fontSize: 28,
-                fontWeight: '800',
-                color: colors.primary,
-                fontFamily: 'PlusJakartaSans_800ExtraBold',
-                letterSpacing: -1,
-              }}
-            >
-              NEETFORGE
-            </Text>
-            <Text
-              style={{ fontSize: 12, color: colors.mutedForeground, marginTop: 4, fontFamily: 'Inter_400Regular' }}
-            >
-              Create your account and start learning
-            </Text>
-          </View>
+          <GlowOrb color="#0080ff" size={500} top={-200} right={-100} opacity={0.1} />
+          <GlowOrb color="#4a42d1" size={400} bottom={-150} left={-100} opacity={0.08} />
 
-          <GlassCard>
-            <Text
-              style={{
-                fontSize: 18,
-                fontWeight: '700',
-                color: colors.foreground,
-                marginBottom: 16,
-                fontFamily: 'PlusJakartaSans_700Bold',
-              }}
-            >
-              Sign up
-            </Text>
-
-            {error ? (
-              <View
+          <MotiView
+            from={{ opacity: 0, translateY: 24 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ duration: 600, type: 'timing' }}
+          >
+            <View style={{ alignItems: 'center', marginBottom: 24 }}>
+              <Text
                 style={{
-                  marginBottom: 16,
-                  padding: 12,
-                  borderRadius: 12,
-                  backgroundColor: colors.destructive + '10',
-                  borderWidth: 1,
-                  borderColor: colors.destructive + '20',
+                  fontSize: 28,
+                  fontWeight: '800',
+                  color: colors.primary,
+                  fontFamily: 'PlusJakartaSans_800ExtraBold',
+                  letterSpacing: -1,
                 }}
               >
-                <Text style={{ fontSize: 13, color: colors.destructive }}>{error}</Text>
-              </View>
-            ) : null}
-
-            <View style={{ gap: 12 }}>
-              <Input label="NAME" placeholder="Your name" value={name} onChangeText={setName} />
-              <Input
-                label="EMAIL"
-                placeholder="your@email.com"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-              <Input
-                label="PASSWORD"
-                placeholder="••••••••"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-              />
-              <Input
-                label="PHONE (Optional)"
-                placeholder="Phone number"
-                value={phone}
-                onChangeText={setPhone}
-                keyboardType="phone-pad"
-              />
-              <Button onPress={handleSignup} loading={loading} style={{ marginTop: 4 }}>
-                {loading ? 'Creating account...' : 'Create account'}
-              </Button>
-            </View>
-
-            <View style={{ marginTop: 16, alignItems: 'center' }}>
-              <Text style={{ fontSize: 14, color: colors.mutedForeground }}>
-                Already have an account?{' '}
+                NEETFORGE
               </Text>
-              <Pressable onPress={() => router.push('/login')}>
-                <Text
-                  style={{ fontSize: 14, color: colors.primary, fontWeight: '600', marginTop: 4 }}
-                >
-                  Sign in
-                </Text>
-              </Pressable>
+              <Text
+                style={{ fontSize: 12, color: colors.mutedForeground, marginTop: 4, fontFamily: 'Inter_400Regular' }}
+              >
+                Create your account and start learning
+              </Text>
             </View>
-          </GlassCard>
-        </MotiView>
-      </ScrollView>
-    </KeyboardAvoidingView>
+
+            <GlassCard>
+              <Text
+                style={{
+                  fontSize: 18,
+                  fontWeight: '700',
+                  color: colors.foreground,
+                  marginBottom: 16,
+                  fontFamily: 'PlusJakartaSans_700Bold',
+                }}
+              >
+                Sign up
+              </Text>
+
+              {error ? (
+                <View
+                  style={{
+                    marginBottom: 16,
+                    padding: 12,
+                    borderRadius: 12,
+                    backgroundColor: colors.destructive + '10',
+                    borderWidth: 1,
+                    borderColor: colors.destructive + '20',
+                  }}
+                >
+                  <Text style={{ fontSize: 13, color: colors.destructive }}>{error}</Text>
+                </View>
+              ) : null}
+
+              <View style={{ gap: 12 }}>
+                <Input label="NAME" placeholder="Your name" value={name} onChangeText={setName} />
+                <Input
+                  label="EMAIL"
+                  placeholder="your@email.com"
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+                <Input
+                  label="PASSWORD"
+                  placeholder="••••••••"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                />
+                <Input
+                  label="PHONE (Optional)"
+                  placeholder="Phone number"
+                  value={phone}
+                  onChangeText={setPhone}
+                  keyboardType="phone-pad"
+                />
+                <Button onPress={handleSignup} loading={loading} style={{ marginTop: 4 }}>
+                  {loading ? 'Creating account...' : 'Create account'}
+                </Button>
+              </View>
+
+              <View style={{ marginTop: 16, alignItems: 'center' }}>
+                <Text style={{ fontSize: 14, color: colors.mutedForeground, fontFamily: 'Inter_400Regular' }}>
+                  Already have an account?{' '}
+                </Text>
+                <Pressable onPress={() => router.push('/login')}>
+                  <Text
+                    style={{ fontSize: 14, color: colors.primary, fontWeight: '600', marginTop: 4, fontFamily: 'Inter_600SemiBold' }}
+                  >
+                    Sign in
+                  </Text>
+                </Pressable>
+              </View>
+            </GlassCard>
+          </MotiView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }

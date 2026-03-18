@@ -12,6 +12,7 @@ const createShadow = (color: string, offsetY: number, opacity: number, radius: n
 
 export const shadows = {
   sm: createShadow('#000', 1, 0.06, 3, 1),
+  md: createShadow('#000', 2, 0.1, 8, 2),
   card: createShadow('#000', 4, 0.08, 12, 3),
   elevated: createShadow('#000', 10, 0.12, 30, 6),
   glowPrimary: createShadow('#0080ff', 4, 0.25, 20, 4),
@@ -21,6 +22,7 @@ export const shadows = {
 
 export const darkShadows = {
   sm: createShadow('#000', 1, 0.15, 3, 1),
+  md: createShadow('#000', 2, 0.25, 8, 2),
   card: createShadow('#000', 4, 0.2, 12, 3),
   elevated: createShadow('#000', 10, 0.3, 30, 6),
   glowPrimary: createShadow('#1a8dff', 4, 0.3, 20, 4),

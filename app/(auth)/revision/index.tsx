@@ -133,9 +133,56 @@ const Revision = () => {
   if (!isLevelMode) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.background }}>
+        {/* ── Sticky Header ── */}
+        <View style={{
+          paddingTop: insets.top,
+          paddingHorizontal: 16,
+          paddingBottom: 4,
+          backgroundColor: colors.card,
+          borderBottomWidth: 1,
+          borderBottomColor: colors.border,
+          zIndex: 10,
+        }}>
+          <MotiView
+            from={{ opacity: 0, translateY: -16 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: 'timing', duration: 400 }}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingVertical: 8
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <Pressable
+                onPress={() => router.back()}
+                style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }}
+              >
+                <ArrowLeft size={20} color={colors.foreground} />
+              </Pressable>
+              <View>
+                <Text style={{ fontSize: 20, fontWeight: '800', color: colors.primary, fontFamily: 'PlusJakartaSans_800ExtraBold' }}>
+                  NeuronZ
+                </Text>
+                <Text style={{ fontSize: 12, color: colors.mutedForeground, marginTop: -2, fontFamily: 'Inter_400Regular' }}>
+                  Spaced Repetition System
+                </Text>
+              </View>
+            </View>
+            <View style={{
+              width: 44, height: 44, borderRadius: 16,
+              backgroundColor: colors.primary,
+              alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Brain size={24} color="#fff" />
+            </View>
+          </MotiView>
+        </View>
+
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ padding: 16, paddingTop: insets.top + 8, paddingBottom: 112 }}
+          contentContainerStyle={{ padding: 16, paddingBottom: 112, paddingTop: 16 }}
           showsVerticalScrollIndicator={false}
         >
           <NeuronzDashboard />

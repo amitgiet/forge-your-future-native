@@ -129,193 +129,220 @@ const Analytics = () => {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: insets.top + 8, paddingBottom: 100 }}
-        showsVerticalScrollIndicator={false}
-      >
-      {/* Header — matching web */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 24, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-        <Pressable
-          onPress={() => router.back()}
-          style={({ pressed }) => ({
-            width: 40, height: 40, borderRadius: 12,
-            backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
-            alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.7 : 1,
-          })}
-        >
-          <ArrowLeft size={20} color={colors.foreground} />
-        </Pressable>
-        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <BarChart3 size={20} color={colors.primary} />
-              <Text style={{ fontSize: 18, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold' }}>My Analytics</Text>
-            </View>
-            <Text style={{ fontSize: 12, color: colors.mutedForeground, fontFamily: 'Inter_400Regular' }}>Performance insights & weak areas</Text>
-          </View>
-          <Pressable onPress={fetchAll} disabled={loading} style={({ pressed }) => ({
-            width: 40, height: 40, borderRadius: 12, backgroundColor: colors.card,
-            borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center',
-            opacity: loading ? 0.5 : pressed ? 0.7 : 1,
-          })}>
-            {loading ? <ActivityIndicator size="small" color={colors.foreground} /> : <RefreshCw size={16} color={colors.foreground} />}
-          </Pressable>
-        </View>
-      </View>
-
-      {error ? (
-        <View style={{ backgroundColor: colors.destructive + '1A', borderWidth: 1, borderColor: colors.destructive + '4D', borderRadius: 16, padding: 16, marginBottom: 16 }}>
-          <Text style={{ fontSize: 14, color: colors.destructive }}>{error}</Text>
-        </View>
-      ) : null}
-
-      {/* ── Overall Stats ── */}
-      {subjectData?.overall?.total ? (
+      {/* ── Sticky Header ── */}
+      <View style={{
+        paddingTop: insets.top,
+        paddingHorizontal: 16,
+        paddingBottom: 4,
+        backgroundColor: colors.card,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border,
+        zIndex: 10,
+      }}>
         <MotiView
-          from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 400 }}
-          style={{ backgroundColor: colors.primary + '0D', borderWidth: 1, borderColor: colors.primary + '33', borderRadius: 16, padding: 16, marginBottom: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
+          // from={{ opacity: 0, translateY: -16 }}
+          // animate={{ opacity: 1, translateY: 0 }}
+          // transition={{ type: 'timing', duration: 400 }}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingVertical: 8
+          }}
         >
-          <View>
-            <Text style={{ fontSize: 12, fontWeight: '500', color: colors.mutedForeground, fontFamily: 'Inter_500Medium' }}>Overall Accuracy</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 4 }}>
-              <Text style={{ fontSize: 32, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold' }}>{subjectData.overall.accuracy ?? 0}</Text>
-              <Text style={{ fontSize: 18, color: colors.mutedForeground }}>%</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <Pressable
+              onPress={() => router.back()}
+              style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <ArrowLeft size={20} color={colors.foreground} />
+            </Pressable>
+            <View>
+              <Text style={{ fontSize: 20, fontWeight: '800', color: colors.primary, fontFamily: 'PlusJakartaSans_800ExtraBold' }}>
+                My Analysis
+              </Text>
+              <Text style={{ fontSize: 12, color: colors.mutedForeground, marginTop: -2, fontFamily: 'Inter_400Regular' }}>
+                Performance insights & weak areas
+              </Text>
             </View>
           </View>
-          <View style={{ alignItems: 'flex-end' }}>
-            <Text style={{ fontSize: 12, color: colors.mutedForeground }}>Questions</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 4 }}>
-              <Text style={{ fontSize: 20, fontWeight: '700', color: colors.primary, fontFamily: 'Inter_700Bold' }}>{subjectData.overall.correct}</Text>
-              <Text style={{ fontSize: 20, fontWeight: '700', color: colors.mutedForeground }}>/{subjectData.overall.total}</Text>
-            </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Pressable onPress={fetchAll} disabled={loading} style={({ pressed }) => ({
+              width: 40, height: 40, borderRadius: 12, backgroundColor: colors.background,
+              alignItems: 'center', justifyContent: 'center',
+              opacity: loading ? 0.5 : pressed ? 0.7 : 1,
+            })}>
+              {loading ? <ActivityIndicator size="small" color={colors.foreground} /> : <RefreshCw size={18} color={colors.foreground} />}
+            </Pressable>
+            {/* <View style={{
+              width: 44, height: 44, borderRadius: 16,
+              backgroundColor: colors.primary,
+              alignItems: 'center', justifyContent: 'center',
+            }}>
+              <BarChart3 size={24} color="#fff" />
+            </View> */}
           </View>
         </MotiView>
-      ) : null}
+      </View>
 
-      {/* ── Subject Accuracy ── */}
-      <MotiView from={{ opacity: 0, translateY: 16 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 400 }}
-        style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 16, marginBottom: 16 }}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 100, paddingTop: 16 }}
+        showsVerticalScrollIndicator={false}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-          <Target size={20} color={colors.primary} />
-          <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold' }}>Subject Accuracy</Text>
-        </View>
-        {loading ? (
-          <View style={{ gap: 12 }}>{[1, 2, 3].map((i) => <View key={i} style={{ height: 48, backgroundColor: colors.muted, borderRadius: 12 }} />)}</View>
-        ) : (
-          <View style={{ gap: 16 }}>
-            {(subjectData?.subjects || []).map((s, idx) => (
-              <MotiView key={s.subject} from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ delay: idx * 50 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <SubjectIcon subject={s.subject} />
-                    <Text style={{ fontSize: 14, fontWeight: '600', color: colors.foreground }}>{SUBJECT_LABELS[s.subject] || s.subject}</Text>
-                  </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground }}>{s.accuracy ?? 0}%</Text>
-                    <Text style={{ fontSize: 12, color: colors.mutedForeground }}>({s.correct}/{s.total})</Text>
-                  </View>
-                </View>
-                <View style={{ height: 10, backgroundColor: colors.muted, borderRadius: 5, overflow: 'hidden' }}>
-                  <MotiView from={{ width: 0 }} animate={{ width: `${s.accuracy ?? 0}%` }} transition={{ type: 'timing', duration: 800 }} style={{ height: '100%', backgroundColor: colors.primary, borderRadius: 5 }} />
-                </View>
-              </MotiView>
-            ))}
+
+        {error ? (
+          <View style={{ backgroundColor: colors.destructive + '1A', borderWidth: 1, borderColor: colors.destructive + '4D', borderRadius: 16, padding: 16, marginBottom: 16 }}>
+            <Text style={{ fontSize: 14, color: colors.destructive }}>{error}</Text>
           </View>
-        )}
-      </MotiView>
+        ) : null}
 
-      {/* ── Weekly Trend ── */}
-      <MotiView from={{ opacity: 0, translateY: 16 }} animate={{ opacity: 1, translateY: 0 }} transition={{ delay: 150 }}
-        style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 16, marginBottom: 16 }}
-      >
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-          <TrendingUp size={20} color={colors.primary} />
-          <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold' }}>Weekly Trend</Text>
-        </View>
-        {loading ? (
-          <View style={{ height: 128, backgroundColor: colors.muted, borderRadius: 12 }} />
-        ) : trendData.every((d) => d.accuracy === null) ? (
-          <View style={{ alignItems: 'center', paddingVertical: 32 }}>
-            <Text style={{ fontSize: 14, color: colors.mutedForeground }}>No test attempts in the last 8 weeks.</Text>
-          </View>
-        ) : (
-          <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, height: 128 }}>
-            {trendData.map((d, i) => {
-              const pct = d.accuracy != null ? Math.round((d.accuracy / maxAccuracy) * 100) : 0;
-              return (
-                <View key={i} style={{ flex: 1, alignItems: 'center', gap: 4 }}>
-                  <Text style={{ fontSize: 10, fontWeight: '500', color: colors.mutedForeground }}>{d.accuracy != null ? `${d.accuracy}%` : ''}</Text>
-                  <MotiView
-                    from={{ height: 0 }} animate={{ height: `${Math.max(4, pct)}%` }} transition={{ delay: i * 50, duration: 600 }}
-                    style={{ width: '100%', borderRadius: 8, backgroundColor: d.accuracy != null ? colors.primary : colors.muted, minHeight: 4 }}
-                  />
-                  <Text style={{ fontSize: 10, color: colors.mutedForeground, textAlign: 'center' }} numberOfLines={1}>{d.label.split(' ')[0]}</Text>
-                </View>
-              );
-            })}
-          </View>
-        )}
-      </MotiView>
-
-      {/* ── Weakness Heatmap ── */}
-      <MotiView from={{ opacity: 0, translateY: 16 }} animate={{ opacity: 1, translateY: 0 }} transition={{ delay: 250 }}
-        style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 16 }}
-      >
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-          <Flame size={20} color={colors.destructive} />
-          <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold' }}>Weak Chapters</Text>
-        </View>
-
-        {/* Filters */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 16 }}>
-          {['', ...Object.keys(SUBJECT_LABELS)].map((s) => (
-            <Pressable key={s || 'all'} onPress={() => setHeatSubject(s)} style={{
-              paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: 1,
-              backgroundColor: heatSubject === s ? colors.primary : colors.card,
-              borderColor: heatSubject === s ? colors.primary : colors.border,
-            }}>
-              <Text style={{ fontSize: 12, fontWeight: '600', color: heatSubject === s ? '#fff' : colors.mutedForeground }}>
-                {s ? SUBJECT_LABELS[s] : 'All'}
-              </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-
-        {loading ? (
-          <View style={{ gap: 8 }}>{[1, 2, 3, 4].map((i) => <View key={i} style={{ height: 48, backgroundColor: colors.muted, borderRadius: 12 }} />)}</View>
-        ) : heatmapData.length === 0 ? (
-          <View style={{ alignItems: 'center', gap: 8, paddingVertical: 40 }}>
-            <View style={{ width: 56, height: 56, borderRadius: 16, backgroundColor: colors.muted, alignItems: 'center', justifyContent: 'center' }}>
-              <BarChart3 size={28} color={colors.mutedForeground} />
+        {/* ── Overall Stats ── */}
+        {subjectData?.overall?.total ? (
+          <MotiView
+            from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 400 }}
+            style={{ backgroundColor: colors.primary + '0D', borderWidth: 1, borderColor: colors.primary + '33', borderRadius: 16, padding: 16, marginBottom: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
+          >
+            <View>
+              <Text style={{ fontSize: 12, fontWeight: '500', color: colors.mutedForeground, fontFamily: 'Inter_500Medium' }}>Overall Accuracy</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 4 }}>
+                <Text style={{ fontSize: 32, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold' }}>{subjectData.overall.accuracy ?? 0}</Text>
+                <Text style={{ fontSize: 18, color: colors.mutedForeground }}>%</Text>
+              </View>
             </View>
-            <Text style={{ fontSize: 14, color: colors.mutedForeground }}>No chapter data yet.</Text>
-            <Text style={{ fontSize: 12, color: colors.mutedForeground }}>Complete tests to see your weaknesses.</Text>
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={{ fontSize: 12, color: colors.mutedForeground }}>Questions</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 4 }}>
+                <Text style={{ fontSize: 20, fontWeight: '700', color: colors.primary, fontFamily: 'Inter_700Bold' }}>{subjectData.overall.correct}</Text>
+                <Text style={{ fontSize: 20, fontWeight: '700', color: colors.mutedForeground }}>/{subjectData.overall.total}</Text>
+              </View>
+            </View>
+          </MotiView>
+        ) : null}
+
+        {/* ── Subject Accuracy ── */}
+        <MotiView from={{ opacity: 0, translateY: 16 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 400 }}
+          style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 16, marginBottom: 16 }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+            <Target size={20} color={colors.primary} />
+            <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold' }}>Subject Accuracy</Text>
           </View>
-        ) : (
-          <View style={{ gap: 8 }}>
-            {heatmapData.slice(0, 20).map((c, i) => {
-              const heatColors = getHeatmapColors(c.accuracy);
-              return (
-                <MotiView key={c.chapterId + i} from={{ opacity: 0, translateX: -8 }} animate={{ opacity: 1, translateX: 0 }} transition={{ delay: i * 30 }}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 12, borderWidth: 1, backgroundColor: heatColors.bg, borderColor: heatColors.border }}
-                >
-                  <SubjectIcon subject={c.subject} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 12, fontWeight: '600', color: colors.foreground }} numberOfLines={1}>{c.chapterId}</Text>
-                    <Text style={{ fontSize: 10, color: colors.mutedForeground, textTransform: 'capitalize' }}>{c.subject}</Text>
+          {loading ? (
+            <View style={{ gap: 12 }}>{[1, 2, 3].map((i) => <View key={i} style={{ height: 48, backgroundColor: colors.muted, borderRadius: 12 }} />)}</View>
+          ) : (
+            <View style={{ gap: 16 }}>
+              {(subjectData?.subjects || []).map((s, idx) => (
+                <MotiView key={s.subject} from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ delay: idx * 50 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <SubjectIcon subject={s.subject} />
+                      <Text style={{ fontSize: 14, fontWeight: '600', color: colors.foreground }}>{SUBJECT_LABELS[s.subject] || s.subject}</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground }}>{s.accuracy ?? 0}%</Text>
+                      <Text style={{ fontSize: 12, color: colors.mutedForeground }}>({s.correct}/{s.total})</Text>
+                    </View>
                   </View>
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={{ fontSize: 14, fontWeight: '700', color: heatColors.text }}>{c.accuracy != null ? `${c.accuracy}%` : '—'}</Text>
-                    <Text style={{ fontSize: 10, color: colors.mutedForeground }}>{c.correct}/{c.total}</Text>
+                  <View style={{ height: 10, backgroundColor: colors.muted, borderRadius: 5, overflow: 'hidden' }}>
+                    <MotiView from={{ width: 0 }} animate={{ width: `${s.accuracy ?? 0}%` }} transition={{ type: 'timing', duration: 800 }} style={{ height: '100%', backgroundColor: colors.primary, borderRadius: 5 }} />
                   </View>
                 </MotiView>
-              );
-            })}
+              ))}
+            </View>
+          )}
+        </MotiView>
+
+        {/* ── Weekly Trend ── */}
+        <MotiView from={{ opacity: 0, translateY: 16 }} animate={{ opacity: 1, translateY: 0 }} transition={{ delay: 150 }}
+          style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 16, marginBottom: 16 }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+            <TrendingUp size={20} color={colors.primary} />
+            <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold' }}>Weekly Trend</Text>
           </View>
-        )}
-      </MotiView>
+          {loading ? (
+            <View style={{ height: 128, backgroundColor: colors.muted, borderRadius: 12 }} />
+          ) : trendData.every((d) => d.accuracy === null) ? (
+            <View style={{ alignItems: 'center', paddingVertical: 32 }}>
+              <Text style={{ fontSize: 14, color: colors.mutedForeground }}>No test attempts in the last 8 weeks.</Text>
+            </View>
+          ) : (
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, height: 128 }}>
+              {trendData.map((d, i) => {
+                const pct = d.accuracy != null ? Math.round((d.accuracy / maxAccuracy) * 100) : 0;
+                return (
+                  <View key={i} style={{ flex: 1, alignItems: 'center', gap: 4 }}>
+                    <Text style={{ fontSize: 10, fontWeight: '500', color: colors.mutedForeground }}>{d.accuracy != null ? `${d.accuracy}%` : ''}</Text>
+                    <MotiView
+                      from={{ height: 0 }} animate={{ height: `${Math.max(4, pct)}%` }} transition={{ delay: i * 50, duration: 600 }}
+                      style={{ width: '100%', borderRadius: 8, backgroundColor: d.accuracy != null ? colors.primary : colors.muted, minHeight: 4 }}
+                    />
+                    <Text style={{ fontSize: 10, color: colors.mutedForeground, textAlign: 'center' }} numberOfLines={1}>{d.label.split(' ')[0]}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+        </MotiView>
+
+        {/* ── Weakness Heatmap ── */}
+        <MotiView from={{ opacity: 0, translateY: 16 }} animate={{ opacity: 1, translateY: 0 }} transition={{ delay: 250 }}
+          style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 16 }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+            <Flame size={20} color={colors.destructive} />
+            <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold' }}>Weak Chapters</Text>
+          </View>
+
+          {/* Filters */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 16 }}>
+            {['', ...Object.keys(SUBJECT_LABELS)].map((s) => (
+              <Pressable key={s || 'all'} onPress={() => setHeatSubject(s)} style={{
+                paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: 1,
+                backgroundColor: heatSubject === s ? colors.primary : colors.card,
+                borderColor: heatSubject === s ? colors.primary : colors.border,
+              }}>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: heatSubject === s ? '#fff' : colors.mutedForeground }}>
+                  {s ? SUBJECT_LABELS[s] : 'All'}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+
+          {loading ? (
+            <View style={{ gap: 8 }}>{[1, 2, 3, 4].map((i) => <View key={i} style={{ height: 48, backgroundColor: colors.muted, borderRadius: 12 }} />)}</View>
+          ) : heatmapData.length === 0 ? (
+            <View style={{ alignItems: 'center', gap: 8, paddingVertical: 40 }}>
+              <View style={{ width: 56, height: 56, borderRadius: 16, backgroundColor: colors.muted, alignItems: 'center', justifyContent: 'center' }}>
+                <BarChart3 size={28} color={colors.mutedForeground} />
+              </View>
+              <Text style={{ fontSize: 14, color: colors.mutedForeground }}>No chapter data yet.</Text>
+              <Text style={{ fontSize: 12, color: colors.mutedForeground }}>Complete tests to see your weaknesses.</Text>
+            </View>
+          ) : (
+            <View style={{ gap: 8 }}>
+              {heatmapData.slice(0, 20).map((c, i) => {
+                const heatColors = getHeatmapColors(c.accuracy);
+                return (
+                  <MotiView key={c.chapterId + i} from={{ opacity: 0, translateX: -8 }} animate={{ opacity: 1, translateX: 0 }} transition={{ delay: i * 30 }}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 12, borderWidth: 1, backgroundColor: heatColors.bg, borderColor: heatColors.border }}
+                  >
+                    <SubjectIcon subject={c.subject} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 12, fontWeight: '600', color: colors.foreground }} numberOfLines={1}>{c.chapterId}</Text>
+                      <Text style={{ fontSize: 10, color: colors.mutedForeground, textTransform: 'capitalize' }}>{c.subject}</Text>
+                    </View>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={{ fontSize: 14, fontWeight: '700', color: heatColors.text }}>{c.accuracy != null ? `${c.accuracy}%` : '—'}</Text>
+                      <Text style={{ fontSize: 10, color: colors.mutedForeground }}>{c.correct}/{c.total}</Text>
+                    </View>
+                  </MotiView>
+                );
+              })}
+            </View>
+          )}
+        </MotiView>
       </ScrollView>
       <BottomNav />
     </View>

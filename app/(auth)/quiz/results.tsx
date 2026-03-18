@@ -498,16 +498,30 @@ export default function QuizResultsScreen() {
 
         {/* ── Actions ─────────────────────────────────────────────────────── */}
         <MotiView {...anim(0.35)}>
-          <View style={{ flexDirection: 'row', gap: 10 }}>
-            <Button variant="outline" style={{ flex: 1 }} onPress={() => router.back()}>
-              <Text style={{ color: colors.foreground, fontWeight: '600' }}>Back to Roadmap</Text>
-            </Button>
-            <Button style={{ flex: 1 }} onPress={() => router.replace('/(auth)/(tabs)' as any)}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Home size={16} color="#fff" />
-                <Text style={{ color: '#fff', fontWeight: '600' }}>Home</Text>
-              </View>
-            </Button>
+          <View style={{ gap: 10 }}>
+            {params.quizId && (
+              <Button 
+                style={{ backgroundColor: colors.warning, height: 56, borderRadius: 16 }} 
+                onPress={() => router.replace({ pathname: '/(auth)/ai-quiz-session', params: { quizId: params.quizId } } as any)}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <RotateCcw size={20} color="#fff" />
+                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>Retake Quiz</Text>
+                </View>
+              </Button>
+            )}
+
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <Button variant="outline" style={{ flex: 1 }} onPress={() => router.back()}>
+                <Text style={{ color: colors.foreground, fontWeight: '600' }}>Back</Text>
+              </Button>
+              <Button style={{ flex: 1 }} onPress={() => router.replace('/(auth)/(tabs)' as any)}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Home size={16} color="#fff" />
+                  <Text style={{ color: '#fff', fontWeight: '600' }}>Home</Text>
+                </View>
+              </Button>
+            </View>
           </View>
         </MotiView>
 

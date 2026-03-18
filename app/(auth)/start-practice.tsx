@@ -247,17 +247,17 @@ const StartPractice = () => {
             marginBottom: 12, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8,
             backgroundColor:
               checkingAvailability ? colors.muted :
-              availability?.available ? colors.success + '25' :
-              availability ? colors.warning + '25' :
-              colors.muted,
+                availability?.available ? colors.success + '25' :
+                  availability ? colors.warning + '25' :
+                    colors.muted,
           }}>
             <Text style={{
               fontSize: 12, fontFamily: 'Inter_400Regular',
               color:
                 checkingAvailability ? colors.mutedForeground :
-                availability?.available ? colors.success :
-                availability ? colors.warning :
-                colors.mutedForeground,
+                  availability?.available ? colors.success :
+                    availability ? colors.warning :
+                      colors.mutedForeground,
             }}>
               {checkingAvailability
                 ? 'Checking topic mapping...'

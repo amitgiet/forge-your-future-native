@@ -95,22 +95,44 @@ export default function PYQIndexScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <View style={{ paddingTop: 15, backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border, paddingHorizontal: 16, paddingVertical: 12, elevation: 3, zIndex: 10 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <Pressable
-            onPress={() => router.back()}
-            style={{ width: 36, height: 36, justifyContent: 'center', alignItems: 'center', borderRadius: 22, backgroundColor: colors.muted }}
-          >
-            <ChevronLeft size={20} color={colors.foreground} />
-          </Pressable>
-          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <View style={{ width: 36, height: 36, borderRadius: 22, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center' }}>
-              <BookOpen size={18} color="#FFF" />
-            </View>
+      {/* ── Sticky Header ── */}
+      <View style={{
+        paddingTop: insets.top,
+        paddingHorizontal: 16,
+        paddingBottom: 4,
+        backgroundColor: colors.card,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border,
+        zIndex: 10,
+      }}>
+        <View style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingVertical: 8
+        }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <Pressable
+              onPress={() => router.back()}
+              style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <ChevronLeft size={20} color={colors.foreground} />
+            </Pressable>
             <View>
-              <Text style={{ fontSize: 16, fontWeight: '700', color: colors.foreground, fontFamily: 'PlusJakartaSans_700Bold' }}>PYQ Marked NCERT</Text>
-              <Text style={{ fontSize: 11, color: colors.mutedForeground }}>Previous year questions highlighted</Text>
+              <Text style={{ fontSize: 18, fontWeight: '800', color: colors.primary, fontFamily: 'PlusJakartaSans_800ExtraBold' }}>
+                PYQ NCERT
+              </Text>
+              <Text style={{ fontSize: 11, color: colors.mutedForeground, marginTop: -2, fontFamily: 'Inter_400Regular' }}>
+                Marked NCERT Chapters
+              </Text>
             </View>
+          </View>
+          <View style={{
+            width: 30, height: 30, borderRadius: 16,
+            backgroundColor: colors.primary,
+            alignItems: 'center', justifyContent: 'center',
+          }}>
+            <BookOpen size={18} color="#FFF" />
           </View>
         </View>
       </View>
