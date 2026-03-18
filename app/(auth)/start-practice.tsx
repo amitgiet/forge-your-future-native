@@ -162,14 +162,14 @@ const StartPractice = () => {
             <Pressable
               key={subject.id}
               onPress={() => { setSelectedSubject(subject.id); setSelectedTopic(''); setCustomTopic(''); }}
-              style={({ pressed }) => ({
+              style={{
                 width: '47%',
                 borderRadius: 16, borderWidth: 1,
                 borderColor: selectedSubject === subject.id ? colors.primary : colors.border,
                 padding: 16,
-                opacity: pressed ? 0.85 : 1,
+                opacity: 1,
                 backgroundColor: selectedSubject === subject.id ? colors.primary + '14' : colors.card,
-              })}
+              }}
             >
               <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: subject.color, alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
                 <BookOpen size={20} color="#fff" />
@@ -200,14 +200,14 @@ const StartPractice = () => {
               <Pressable
                 key={topic}
                 onPress={() => { setSelectedTopic(topic); setCustomTopic(''); }}
-                style={({ pressed }) => ({
+                style={{
                   flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
                   backgroundColor: selectedTopic === topic ? colors.primary + '14' : colors.card,
                   borderRadius: 12, borderWidth: 1,
                   borderColor: selectedTopic === topic ? colors.primary : colors.border,
                   padding: 12,
-                  opacity: pressed ? 0.85 : 1,
-                })}
+                  opacity: 1,
+                }}
               >
                 <Text style={{ fontSize: 14, fontWeight: '500', color: colors.foreground, fontFamily: 'Inter_500Medium' }}>
                   {topic}
@@ -278,7 +278,7 @@ const StartPractice = () => {
             <Pressable
               onPress={handleStart}
               disabled={loading || checkingAvailability || (availability !== null && !availability.available)}
-              style={({ pressed }) => ({ opacity: (loading || checkingAvailability || (availability !== null && !availability.available) || pressed) ? 0.6 : 1 })}
+              style={{ opacity: (loading || checkingAvailability || (availability !== null && !availability.available)) ? 0.6 : 1 }}
             >
               <LinearGradient
                 colors={[...gradients.primary]}

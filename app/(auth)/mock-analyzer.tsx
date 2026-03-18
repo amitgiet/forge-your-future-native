@@ -23,7 +23,7 @@ export default function MockAnalyzerScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colors, shadows } = useTheme();
-  
+
   const [hasUploaded, setHasUploaded] = useState(false);
 
   const handleUpload = () => {
@@ -48,8 +48,8 @@ export default function MockAnalyzerScreen() {
           animate={{ opacity: 1, translateY: 0 }}
           style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 24, marginTop: 16 }}
         >
-          <Pressable 
-            onPress={() => router.back()} 
+          <Pressable
+            onPress={() => router.back()}
             style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}
           >
             <ArrowLeft size={20} color={colors.foreground} />
@@ -217,9 +217,9 @@ export default function MockAnalyzerScreen() {
                           <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold' }}>
                             {weakness.chapter}
                           </Text>
-                          <View style={{ 
-                            paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12, 
-                            backgroundColor: accColors.bg, borderWidth: 1, borderColor: accColors.border 
+                          <View style={{
+                            paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12,
+                            backgroundColor: accColors.bg, borderWidth: 1, borderColor: accColors.border
                           }}>
                             <Text style={{ fontSize: 12, fontWeight: '700', color: accColors.text, fontFamily: 'Inter_700Bold' }}>
                               {weakness.accuracy}%
@@ -250,7 +250,7 @@ export default function MockAnalyzerScreen() {
               style={{ gap: 12, marginTop: 8 }}
             >
               <Pressable
-                style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
+                style={{ opacity: 1 }}
               >
                 <LinearGradient
                   colors={gradients.primary}
@@ -265,11 +265,11 @@ export default function MockAnalyzerScreen() {
               </Pressable>
 
               <Pressable
-                style={({ pressed }) => ({
+                style={{
                   height: 50, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
                   backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
-                  opacity: pressed ? 0.8 : 1
-                })}
+                  opacity: 1
+                }}
               >
                 <RotateCcw size={20} color={colors.foreground} />
                 <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '700', fontFamily: 'Inter_700Bold' }}>

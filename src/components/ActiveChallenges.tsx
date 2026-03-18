@@ -102,7 +102,7 @@ export const ActiveChallenges = () => {
               onPress={() =>
                 router.push(`/(auth)/practice/session/${challenge._id}` as any)
               }
-              style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
+              style={{ opacity: 1 }}
             >
               <GlassCard>
                 {/* Title + Subject */}

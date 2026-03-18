@@ -201,10 +201,7 @@ export default function PYQTopicViewerScreen() {
         <View style={{ paddingHorizontal: 12, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Pressable
             onPress={() => router.back()}
-            style={({ pressed }) => [
-              { width: 32, height: 32, justifyContent: 'center', alignItems: 'center', borderRadius: 8 },
-              pressed && { backgroundColor: colors.muted }
-            ]}
+            style={{ width: 32, height: 32, justifyContent: 'center', alignItems: 'center', borderRadius: 8 }}
           >
             <ChevronLeft size={20} color={colors.foreground} />
           </Pressable>
@@ -220,10 +217,7 @@ export default function PYQTopicViewerScreen() {
 
           <Pressable
             onPress={openInNewTab}
-            style={({ pressed }) => [
-              { width: 32, height: 32, justifyContent: 'center', alignItems: 'center', borderRadius: 8, borderWidth: 1, borderColor: colors.border },
-              pressed && { borderColor: colors.primary + '66' } // 40% opacity
-            ]}
+            style={{ width: 32, height: 32, justifyContent: 'center', alignItems: 'center', borderRadius: 8, borderWidth: 1, borderColor: colors.border }}
           >
             <ExternalLink size={14} color={colors.mutedForeground} />
           </Pressable>

@@ -140,7 +140,7 @@ export default function SocialScreen() {
             {/* Add friend button — gradient like web */}
             <Pressable
               onPress={() => router.push('/(auth)/add-friend' as any)}
-              style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
+              style={{ opacity: 1 }}
             >
               <LinearGradient
                 colors={[...gradients.primary]}
@@ -244,7 +244,7 @@ export default function SocialScreen() {
             {activeTab === 'friends' && (
               <Pressable
                 onPress={() => router.push('/(auth)/add-friend' as any)}
-                style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1, marginTop: 16 })}
+                style={{ opacity: 1, marginTop: 16 }}
               >
                 <LinearGradient
                   colors={[...gradients.primary]}
@@ -291,12 +291,12 @@ export default function SocialScreen() {
                 </View>
                 <Pressable
                   onPress={() => handleStartChat(friend._id)}
-                  style={({ pressed }) => ({
+                  style={{
                     height: 32, paddingHorizontal: 12, borderRadius: 22,
                     backgroundColor: colors.primary + '18',
                     flexDirection: 'row', alignItems: 'center', gap: 4,
-                    opacity: pressed ? 0.7 : 1,
-                  })}
+                    opacity: 1,
+                  }}
                 >
                   <MessageCircle size={14} color={colors.primary} />
                   <Text style={{ fontSize: 12, fontWeight: '600', color: colors.primary, fontFamily: 'Inter_600SemiBold' }}>Chat</Text>
@@ -337,7 +337,7 @@ export default function SocialScreen() {
                   <Pressable
                     onPress={() => handleAcceptRequest(request.userId?._id)}
                     disabled={acceptingId === request.userId?._id}
-                    style={({ pressed }) => ({ flex: 1, opacity: (acceptingId === request.userId?._id || pressed) ? 0.6 : 1 })}
+                    style={{ flex: 1, opacity: (acceptingId === request.userId?._id) ? 0.6 : 1 }}
                   >
                     <LinearGradient
                       colors={['#22c55e', '#16a34a']}
@@ -354,13 +354,13 @@ export default function SocialScreen() {
                   </Pressable>
                   {/* Decline */}
                   <Pressable
-                    style={({ pressed }) => ({
+                    style={{
                       flex: 1, height: 36, borderRadius: 20,
                       borderWidth: 1, borderColor: colors.border,
                       backgroundColor: colors.muted,
                       flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-                      opacity: pressed ? 0.7 : 1,
-                    })}
+                      opacity: 1,
+                    }}
                   >
                     <X size={14} color={colors.mutedForeground} />
                     <Text style={{ fontSize: 12, fontWeight: '600', color: colors.mutedForeground, fontFamily: 'Inter_600SemiBold' }}>Decline</Text>
@@ -383,13 +383,13 @@ export default function SocialScreen() {
                 >
                   <Pressable
                     onPress={() => handleChatClick(chat._id)}
-                    style={({ pressed }) => ({
+                    style={{
                       flexDirection: 'row', alignItems: 'center', gap: 12,
                       backgroundColor: colors.card,
                       borderRadius: 20, borderWidth: 1, borderColor: colors.border,
                       padding: 12,
-                      opacity: pressed ? 0.85 : 1,
-                    })}
+                      opacity: 1,
+                    }}
                   >
                     {chat.type === 'group' ? (
                       <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: colors.secondary + '18', alignItems: 'center', justifyContent: 'center' }}>

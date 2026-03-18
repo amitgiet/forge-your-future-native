@@ -92,7 +92,7 @@ const QuizCard = ({ topic, duration, questionsCount, difficulty = 'medium' }: Qu
       {/* Start button */}
       <Pressable
         onPress={() => router.push('/(auth)/quiz' as any)}
-        style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
+        style={{ opacity: 1 }}
       >
         <LinearGradient
           colors={[...gradients.primary]}

@@ -203,7 +203,7 @@ export const DailyChallengeCard = () => {
         {/* Action Button — gradient primary for "Start DPP", outline for "View Details" */}
         <Pressable
           onPress={() => router.push('/(auth)/daily-challenge')}
-          style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
+          style={{ opacity: 1 }}
         >
           {isCompleted ? (
             <View style={{

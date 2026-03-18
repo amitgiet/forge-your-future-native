@@ -100,7 +100,7 @@ export default function QuizGeneratorScreen() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <Pressable
               onPress={() => router.back()}
-              style={({ pressed }) => ({
+              style={{
                 width: 40,
                 height: 40,
                 borderRadius: 12,
@@ -109,8 +109,8 @@ export default function QuizGeneratorScreen() {
                 borderColor: colors.border,
                 alignItems: 'center',
                 justifyContent: 'center',
-                opacity: pressed ? 0.7 : 1
-              })}
+                opacity: 1
+              }}
             >
               <ArrowLeft size={20} color={colors.foreground} />
             </Pressable>
@@ -239,7 +239,7 @@ export default function QuizGeneratorScreen() {
                 <Pressable
                   key={quiz._id}
                   onPress={() => router.push({ pathname: '/(auth)/quiz/results', params: { quizId: quiz._id } } as any)}
-                  style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
+                  style={{ opacity: 1 }}
                 >
                   <GlassCard style={{ flexDirection: 'row', alignItems: 'center', gap: 16, padding: 16, ...shadows.card }}>
                     <View style={{
@@ -265,17 +265,17 @@ export default function QuizGeneratorScreen() {
                         </Badge>
                       </View>
                     </View>
-                    <Pressable 
+                    <Pressable
                       onPress={() => router.push({ pathname: '/(auth)/ai-quiz-session', params: { quizId: quiz._id } } as any)}
-                      style={({ pressed }) => ({
+                      style={{
                         width: 36,
                         height: 36,
                         borderRadius: 10,
                         backgroundColor: colors.primary + '10',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        opacity: pressed ? 0.7 : 1
-                      })}
+                        opacity: 1
+                      }}
                     >
                       <RotateCcw size={18} color={colors.primary} />
                     </Pressable>

@@ -232,11 +232,11 @@ const Revision = () => {
 
             <Pressable
               onPress={() => router.replace('/(auth)/revision' as any)}
-              style={({ pressed }) => ({
+              style={{
                 width: '100%', paddingVertical: 12, borderRadius: 12,
                 backgroundColor: colors.primary, alignItems: 'center',
-                opacity: pressed ? 0.85 : 1,
-              })}
+                opacity: 1,
+              }}
             >
               <Text style={{ fontSize: 14, fontWeight: '600', color: '#fff', fontFamily: 'Inter_600SemiBold' }}>
                 Back to NeuronZ

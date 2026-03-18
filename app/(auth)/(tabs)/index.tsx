@@ -210,7 +210,7 @@ export default function DashboardScreen() {
             <ThemeToggle />
             <Pressable
               onPress={() => router.push('/(auth)/(tabs)/profile' as any)}
-              style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
+              style={{ opacity: 1 }}
             >
               <LinearGradient
                 colors={[...gradients.primary]}
@@ -485,9 +485,9 @@ export default function DashboardScreen() {
                 key={idx}
                 onPress={() => resource.path ? router.push(resource.path as any) : null}
                 disabled={!resource.path}
-                style={({ pressed }) => ({
-                  opacity: pressed ? 0.8 : 1,
-                })}
+                style={{
+                  opacity: 1,
+                }}
               >
                 <GlassCard style={{ flexDirection: 'row', alignItems: 'center', padding: 14 }}>
                   <View style={{

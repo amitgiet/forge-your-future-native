@@ -136,14 +136,14 @@ const ShieldCard = ({ initialMinutes = 25 }: ShieldCardProps) => {
         {/* Pause/Resume button */}
         <Pressable
           onPress={isPaused ? handleResume : handlePause}
-          style={({ pressed }) => ({
+          style={{
             width: 44, height: 44, borderRadius: 12,
             borderWidth: 1,
             borderColor: isPaused ? colors.success + '50' : colors.primary + '50',
             alignItems: 'center', justifyContent: 'center',
             backgroundColor: 'transparent',
-            opacity: pressed ? 0.7 : 1,
-          })}
+            opacity: 1,
+          }}
         >
           {isPaused
             ? <Play size={20} color={colors.success} />

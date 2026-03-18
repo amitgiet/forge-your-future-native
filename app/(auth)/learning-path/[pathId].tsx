@@ -241,13 +241,13 @@ const LearningPathFlow = () => {
                       key={index}
                       onPress={() => handleSelect(index)}
                       disabled={selectedAnswer !== null}
-                      style={({ pressed }) => ({
+                      style={{
                         flexDirection: 'row', alignItems: 'center', gap: 12,
                         padding: 16, borderRadius: 16, borderWidth: 2,
                         borderColor: styles.borderColor, backgroundColor: styles.backgroundColor,
-                        transform: [{ scale: pressed && selectedAnswer === null ? 0.98 : 1 }],
+                        transform: [{ scale: selectedAnswer === null ? 0.98 : 1 }],
                         opacity: selectedAnswer !== null && !isCorrect && !isSelected ? 0.5 : 1
-                      })}
+                      }}
                     >
                       <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: colors.background + '80', alignItems: 'center', justifyContent: 'center' }}>
                         <Text style={{ fontSize: 14, fontWeight: '700', color: styles.iconColor }}>{String.fromCharCode(65 + index)}</Text>

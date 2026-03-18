@@ -118,7 +118,7 @@ export default function TestSeriesTypeSelectorScreen() {
           <View style={{ gap: 10 }}>
             {typeRows.map((row, idx) => (
               <MotiView key={row.key} from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }} transition={{ delay: idx * 0.04 }}>
-                <Pressable onPress={() => router.push({ pathname: '/(auth)/tests/[seriesKey]/[typeKey]', params: { seriesKey: String(seriesKey), typeKey: row.key } } as any)} style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}>
+                <Pressable onPress={() => router.push({ pathname: '/(auth)/tests/[seriesKey]/[typeKey]', params: { seriesKey: String(seriesKey), typeKey: row.key } } as any)} style={{ opacity: 1 }}>
                   <View style={{ width: '100%', borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, padding: 18, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                     <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.secondary + '1A', alignItems: 'center', justifyContent: 'center' }}>
                       {typeIcon(row.key, colors.secondary)}

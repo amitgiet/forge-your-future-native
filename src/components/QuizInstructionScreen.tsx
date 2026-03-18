@@ -148,7 +148,7 @@ const QuizInstructionScreen: React.FC<QuizInstructionScreenProps> = ({
       >
         <Pressable
           onPress={onStart}
-          style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
+          style={{ opacity: 1 }}
         >
           <LinearGradient
             colors={[...gradients.primary]}

@@ -208,7 +208,7 @@ export default function TestListScreen() {
                     )}
 
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Pressable onPress={() => toggleCompleted(item)} style={({ pressed }) => ({ flex: 1, opacity: pressed ? 0.9 : 1, width: 150 })}>
+                      <Pressable onPress={() => toggleCompleted(item)} style={{ flex: 1, width: 150 }}>
                         {completed ? (
                           <View style={{ height: 40, borderRadius: 22, backgroundColor: colors.muted, alignItems: 'center', justifyContent: 'center' }}>
                             <Text style={{ fontSize: 12, fontWeight: '600', color: colors.mutedForeground }}>Undo Completion</Text>
@@ -219,7 +219,7 @@ export default function TestListScreen() {
                           </LinearGradient>
                         )}
                       </Pressable>
-                      <Pressable onPress={() => openPdf(item.resources?.questionPdf || item.resources?.answerPdf, `${title}`)} style={({ pressed }) => ({ width: 36, height: 36, borderRadius: 12, backgroundColor: colors.muted, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.7 : 1 })}>
+                      <Pressable onPress={() => openPdf(item.resources?.questionPdf || item.resources?.answerPdf, `${title}`)} style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: colors.muted, alignItems: 'center', justifyContent: 'center', opacity: 1 }}>
                         <ExternalLink size={16} color={colors.mutedForeground} />
                       </Pressable>
                     </View>

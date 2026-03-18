@@ -304,7 +304,7 @@ const TrackChapter: React.FC<TrackChapterProps> = ({ isOpen, onClose }) => {
                     <Pressable
                       onPress={() => handleTrackChapter(chapter._id)}
                       disabled={isLoading || trackedChapter === chapter._id}
-                      style={({ pressed }) => ({
+                      style={{
                         paddingHorizontal: 14,
                         paddingVertical: 6,
                         backgroundColor: colors.primary,
@@ -312,8 +312,8 @@ const TrackChapter: React.FC<TrackChapterProps> = ({ isOpen, onClose }) => {
                         flexDirection: 'row',
                         alignItems: 'center',
                         gap: 6,
-                        opacity: (isLoading || trackedChapter === chapter._id || pressed) ? 0.6 : 1,
-                      })}
+                        opacity: (isLoading || trackedChapter === chapter._id) ? 0.6 : 1,
+                      }}
                     >
                       {trackedChapter === chapter._id ? (
                         <ActivityIndicator size="small" color="#fff" />

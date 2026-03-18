@@ -8,6 +8,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import apiService from '@/lib/apiService';
 import { Button } from '@/components/ui/Button';
 import BottomNav from '@/components/BottomNav';
+import Markdown from 'react-native-markdown-display';
 
 type Phase = 'intro' | 'reading' | 'quiz' | 'results' | 'already-completed';
 
@@ -26,6 +27,51 @@ const DailyChallenge = () => {
   const [showFeedback, setShowFeedback] = useState(false);
   const [timeLeft, setTimeLeft] = useState(600);
   const [quizStarted, setQuizStarted] = useState(false);
+
+  const getOptionText = (option: any): string => {
+    if (typeof option === 'string' || typeof option === 'number') return String(option);
+    if (option && typeof option === 'object') {
+      if (typeof option.text === 'string') return option.text;
+      if (typeof option.value === 'string') return option.value;
+      if (typeof option.label === 'string') return option.label;
+      if (option.text && typeof option.text === 'object') {
+        if (typeof option.text.en === 'string') return option.text.en;
+        const firstText = Object.values(option.text).find((v) => typeof v === 'string');
+        if (typeof firstText === 'string') return firstText;
+      }
+    }
+    return '';
+  };
+
+  const getQuestionOptions = (question: any): string[] => {
+    if (Array.isArray(question?.options)) {
+      return question.options.map(getOptionText).filter((o) => o.trim().length > 0);
+    }
+    if (question?.options && typeof question.options === 'object') {
+      return Object.values(question.options).map(getOptionText).filter((o) => o.trim().length > 0);
+    }
+    return [];
+  };
+
+  const getQuestionText = (question: any): string => {
+    if (typeof question?.question === 'string') return question.question;
+    if (question?.question && typeof question.question === 'object') {
+      if (typeof question.question.en === 'string') return question.question.en;
+      const firstText = Object.values(question.question).find((v) => typeof v === 'string');
+      if (typeof firstText === 'string') return firstText;
+    }
+    return '';
+  };
+
+  const getExplanationText = (question: any): string => {
+    if (typeof question?.explanation === 'string') return question.explanation;
+    if (question?.explanation && typeof question.explanation === 'object') {
+      if (typeof question.explanation.en === 'string') return question.explanation.en;
+      const firstText = Object.values(question.explanation).find((v) => typeof v === 'string');
+      if (typeof firstText === 'string') return firstText;
+    }
+    return '';
+  };
 
   useEffect(() => {
     fetchChallenge();
@@ -81,29 +127,29 @@ const DailyChallenge = () => {
     setSelectedAnswer(index);
   };
 
-  const handleSubmitAnswer = async () => {
+  const handleCheckAnswer = () => {
     if (selectedAnswer === null) return;
     setShowFeedback(true);
     const newAnswers = [...answers, selectedAnswer];
     setAnswers(newAnswers);
+  };
 
-    setTimeout(async () => {
-      if (currentQuestion < challenge.questions.length - 1) {
-        setCurrentQuestion(prev => prev + 1);
-        setSelectedAnswer(null);
-        setShowFeedback(false);
-      } else {
-        try {
-          await apiService.dailyChallenge.submitChallenge({
-            answers: newAnswers,
-            challengeId: challenge.id
-          });
-        } catch (error) {
-          console.error('Error submitting challenge:', error);
-        }
-        setPhase('results');
+  const handleNextQuestion = async () => {
+    if (currentQuestion < challenge.questions.length - 1) {
+      setCurrentQuestion(prev => prev + 1);
+      setSelectedAnswer(null);
+      setShowFeedback(false);
+    } else {
+      try {
+        await apiService.dailyChallenge.submitChallenge({
+          answers: answers,
+          challengeId: challenge.id
+        });
+      } catch (error) {
+        console.error('Error submitting challenge:', error);
       }
-    }, 1500);
+      setPhase('results');
+    }
   };
 
   const getCorrectAnswerIndex = (question: any) => {
@@ -129,6 +175,7 @@ const DailyChallenge = () => {
 
   const score = challenge ? calculateScore(answers) : 0;
   const correctCount = challenge ? answers.filter((a, i) => a === getCorrectAnswerIndex(challenge?.questions?.[i])).length : 0;
+  const bottomNavSpace = insets.bottom + 104;
 
   if (loading) {
     return (
@@ -145,29 +192,63 @@ const DailyChallenge = () => {
       let l = line.replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<')
         .replace(/&gt;/g, '>').replace(/&#39;/g, "'").replace(/&apos;/g, "'");
 
-      l = l.replace(/\$([^$]+)\$/g, (_, math) => {
-        return math.replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '($1/$2)').replace(/\\pi/g, 'π')
-          .replace(/\\theta/g, 'θ').replace(/\\sin/g, 'sin').replace(/\\cos/g, 'cos')
-          .replace(/\\tan/g, 'tan').replace(/\\cot/g, 'cot').replace(/\\sec/g, 'sec')
-          .replace(/\\csc/g, 'csc').replace(/\^\{-1\}/g, '⁻¹').replace(/\\le/g, '≤')
-          .replace(/\\ge/g, '≥').replace(/\\ne/g, '≠').replace(/\\{/g, '').replace(/\\}/g, '')
-          .replace(/[{}]/g, '');
+      l = l.replace(/\$([^\$]+)\$/g, (_, math) => {
+        return math.replace(/\\frac\{([^\}]+)\}\{([^\}]+)\}/g, '($1/$2)')
+          .replace(/\\pi/g, 'π').replace(/\\theta/g, 'θ')
+          .replace(/\\sin/g, 'sin').replace(/\\cos/g, 'cos')
+          .replace(/\\tan/g, 'tan').replace(/\\cot/g, 'cot')
+          .replace(/\\sec/g, 'sec').replace(/\\csc/g, 'csc')
+          .replace(/\\alpha/g, 'α').replace(/\\beta/g, 'β')
+          .replace(/\\gamma/g, 'γ').replace(/\\phi/g, 'φ')
+          .replace(/\\lambda/g, 'λ').replace(/\\mu/g, 'μ')
+          .replace(/\\^\{-1\}/g, '⁻¹').replace(/\\le/g, '≤')
+          .replace(/\\ge/g, '≥').replace(/\\ne/g, '≠')
+          .replace(/\\\{/g, '').replace(/\\\}/g, '').replace(/[\{\}]/g, '');
       }).replace(/\\\{/g, '{').replace(/\\\}/g, '}').replace(/\\0\\/g, '{0}').replace(/\\\(/g, '(').replace(/\\\)/g, ')');
+
+      // Global fallbacks for out-of-math symbols:
+      l = l.replace(/\\phi/g, 'φ')
+        .replace(/\\alpha/g, 'α')
+        .replace(/\\beta/g, 'β')
+        .replace(/\\gamma/g, 'γ')
+        .replace(/\\lambda/g, 'λ')
+        .replace(/\\mu/g, 'μ')
+        .replace(/\\pi/g, 'π')
+        .replace(/\\theta/g, 'θ')
+        .replace(/_\{?max\}?/g, 'ₘₐₓ')
+        .replace(/_\{?min\}?/g, 'ₘᵢₙ')
+        .replace(/_\{?0\}?/g, '₀')
+        .replace(/_\{?1\}?/g, '₁')
+        .replace(/_\{?2\}?/g, '₂')
+        .replace(/_\{?x\}?/g, 'ₓ')
+        .replace(/_\{?y\}?/g, '_{y}');
 
       if (l.startsWith('## ')) return <Text key={i} style={{ fontSize: 18, fontWeight: '700', color: colors.foreground, marginTop: 16, marginBottom: 8, fontFamily: 'Inter_700Bold' }}>{l.replace('## ', '')}</Text>;
       if (l.startsWith('### ')) return <Text key={i} style={{ fontSize: 16, fontWeight: '700', color: colors.foreground, marginTop: 12, marginBottom: 8, fontFamily: 'Inter_700Bold' }}>{l.replace('### ', '')}</Text>;
-      if (l.startsWith('**') && l.endsWith('**')) return <Text key={i} style={{ fontSize: 14, fontWeight: '700', color: colors.primary, marginTop: 12, marginBottom: 4 }}>{l.replace(/\*\*/g, '')}</Text>;
-      if (l.startsWith('- ')) return (
-        <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', marginLeft: 8, marginBottom: 4 }}>
-          <Text style={{ fontSize: 14, color: colors.mutedForeground, marginRight: 6 }}>•</Text>
-          <Text style={{ fontSize: 14, color: colors.mutedForeground, flex: 1, lineHeight: 22 }}>{l.replace('- ', '')}</Text>
-        </View>
-      );
 
-      const parts = l.split(/\*\*([^*]+)\*\*/g);
+      const renderBoldParts = (textStr: string, baseColor: string) => {
+        const parts = textStr.split(/\*\*([^*]+)\*\*/g);
+        return parts.map((part, idx) => idx % 2 === 1
+          ? <Text key={idx} style={{ fontWeight: '700', color: colors.foreground }}>{part}</Text>
+          : <Text key={idx} style={{ color: baseColor }}>{part}</Text>
+        );
+      };
+
+      if (l.startsWith('- ')) {
+        const bulletContent = l.replace('- ', '');
+        return (
+          <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', marginLeft: 8, marginBottom: 4 }}>
+            <Text style={{ fontSize: 14, color: colors.mutedForeground, marginRight: 6 }}>•</Text>
+            <Text style={{ fontSize: 14, color: colors.mutedForeground, flex: 1, lineHeight: 22 }}>
+              {renderBoldParts(bulletContent, colors.mutedForeground)}
+            </Text>
+          </View>
+        );
+      }
+
       return (
         <Text key={i} style={{ fontSize: 14, color: colors.mutedForeground, lineHeight: 22, marginVertical: 4 }}>
-          {parts.map((part, idx) => idx % 2 === 1 ? <Text key={idx} style={{ fontWeight: '700', color: colors.foreground }}>{part}</Text> : part)}
+          {renderBoldParts(l, colors.mutedForeground)}
         </Text>
       );
     });
@@ -207,10 +288,10 @@ const DailyChallenge = () => {
             <Text style={{ fontSize: 18, fontWeight: '700', color: colors.foreground, marginBottom: 16 }}>Your Answers & Correct Answers</Text>
             {challenge.questions?.map((q: any, i: number) => (
               <View key={i} style={{ marginBottom: 12, padding: 12, borderRadius: 12, backgroundColor: colors.muted + '4D', borderWidth: 1, borderColor: colors.border }}>
-                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground, marginBottom: 8 }}>Q{i + 1}: {q.question}</Text>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground, marginBottom: 8 }}>Q{i + 1}: {getQuestionText(q)}</Text>
                 <View style={{ gap: 4 }}>
-                  {q.options?.map((opt: string, idx: number) => {
-                    const isCorrect = idx === q.correctAnswer;
+                  {getQuestionOptions(q).map((opt: string, idx: number) => {
+                    const isCorrect = idx === getCorrectAnswerIndex(q);
                     const isUserSelected = challenge.userAnswers && idx === challenge.userAnswers[i];
                     return (
                       <View key={idx} style={{
@@ -225,11 +306,11 @@ const DailyChallenge = () => {
                     );
                   })}
                 </View>
-                {q.explanation && (
+                {getExplanationText(q) ? (
                   <View style={{ marginTop: 8, padding: 8, borderRadius: 8, backgroundColor: colors.muted + '80', borderLeftWidth: 2, borderLeftColor: colors.primary }}>
-                    <Text style={{ fontSize: 12, color: colors.mutedForeground }}><Text style={{ fontWeight: '700', color: colors.foreground }}>Explanation:</Text> {q.explanation}</Text>
+                    <Text style={{ fontSize: 12, color: colors.mutedForeground }}><Text style={{ fontWeight: '700', color: colors.foreground }}>Explanation:</Text> {getExplanationText(q)}</Text>
                   </View>
-                )}
+                ) : null}
               </View>
             ))}
           </View>
@@ -244,7 +325,17 @@ const DailyChallenge = () => {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <View style={{ paddingTop: insets.top, paddingHorizontal: 16, paddingBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+      <View style={{
+        paddingTop: insets.top,
+        paddingHorizontal: 16,
+        paddingBottom: 16,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        backgroundColor: colors.card,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border,
+      }}>
         <Pressable onPress={() => router.back()} style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: colors.muted, alignItems: 'center', justifyContent: 'center' }}>
           <ArrowLeft size={20} color={colors.foreground} />
         </Pressable>
@@ -260,7 +351,7 @@ const DailyChallenge = () => {
         )}
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 40 }}>
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: bottomNavSpace }}>
         <AnimatePresence>
           {/* INTRO PHASE */}
           {phase === 'intro' && (
@@ -343,22 +434,24 @@ const DailyChallenge = () => {
 
               <View style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 24, padding: 20 }}>
                 <Text style={{ fontSize: 12, color: colors.mutedForeground, marginBottom: 8 }}>Question {currentQuestion + 1} of {challenge.questions.length}</Text>
-                <Text style={{ fontSize: 18, fontWeight: '700', color: colors.foreground, marginBottom: 24, lineHeight: 26 }}>{challenge.questions[currentQuestion].question}</Text>
+                <Text style={{ fontSize: 18, fontWeight: '700', color: colors.foreground, marginBottom: 24, lineHeight: 26 }}>{getQuestionText(challenge.questions[currentQuestion])}</Text>
 
                 <View style={{ gap: 12 }}>
-                  {challenge.questions[currentQuestion].options.map((option: string, index: number) => {
+                  {getQuestionOptions(challenge.questions[currentQuestion]).map((option: string, index: number) => {
                     const isCorrect = index === getCorrectAnswerIndex(challenge.questions[currentQuestion]);
                     const isSelected = selectedAnswer === index;
 
-                    let bg = colors.card;
+                    let bg = colors.background;
                     let borderC = colors.border;
                     let textC = colors.foreground;
+                    let letterBg = colors.muted;
+                    let letterC = colors.foreground;
 
                     if (showFeedback) {
-                      if (isCorrect) { bg = colors.success + '33'; borderC = colors.success; textC = colors.success; }
-                      else if (isSelected && !isCorrect) { bg = colors.destructive + '33'; borderC = colors.destructive; textC = colors.destructive; }
+                      if (isCorrect) { bg = colors.success + '20'; borderC = colors.success; textC = colors.success; letterBg = colors.success + '33'; letterC = colors.success; }
+                      else if (isSelected && !isCorrect) { bg = colors.destructive + '20'; borderC = colors.destructive; textC = colors.destructive; letterBg = colors.destructive + '33'; letterC = colors.destructive; }
                     } else if (isSelected) {
-                      bg = colors.primary + '1A'; borderC = colors.primary; textC = colors.primary;
+                      bg = colors.primary + '15'; borderC = colors.primary; textC = colors.primary; letterBg = colors.primary + '33'; letterC = colors.primary;
                     }
 
                     return (
@@ -366,31 +459,54 @@ const DailyChallenge = () => {
                         key={index}
                         onPress={() => handleSelectAnswer(index)}
                         disabled={showFeedback}
-                        style={({ pressed }) => ({
-                          flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 16, borderWidth: 2,
-                          backgroundColor: bg, borderColor: borderC, opacity: showFeedback && !isCorrect && !isSelected ? 0.5 : 1,
-                          transform: [{ scale: pressed && !showFeedback ? 0.98 : 1 }]
-                        })}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 12,
+                          padding: 14,
+                          borderRadius: 14,
+                          borderWidth: 1,
+                          backgroundColor: bg,
+                          borderColor: borderC,
+                          opacity: showFeedback && !isCorrect && !isSelected ? 0.45 : 1
+                        }}
                       >
-                        <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.muted, alignItems: 'center', justifyContent: 'center' }}>
-                          <Text style={{ fontSize: 14, fontWeight: '700', color: textC }}>{String.fromCharCode(65 + index)}</Text>
+                        <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: letterBg, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <Text style={{ fontSize: 13, fontWeight: '700', color: letterC }}>{String.fromCharCode(65 + index)}</Text>
                         </View>
-                        <Text style={{ flex: 1, fontSize: 15, color: textC, fontWeight: isSelected || (showFeedback && isCorrect) ? '600' : '500' }}>{option}</Text>
+                        <Text style={{ flex: 1, fontSize: 15, color: textC, fontWeight: isSelected || (showFeedback && isCorrect) ? '600' : '400', lineHeight: 21 }}>{option}</Text>
                         {showFeedback && isCorrect && <CheckCircle size={20} color={colors.success} />}
                         {showFeedback && isSelected && !isCorrect && <XCircle size={20} color={colors.destructive} />}
                       </Pressable>
                     );
                   })}
                 </View>
+
+                {showFeedback && getExplanationText(challenge.questions[currentQuestion]) ? (
+                  <View style={{ marginTop: 16, padding: 10, borderRadius: 10, backgroundColor: colors.muted + '80', borderLeftWidth: 2, borderLeftColor: colors.primary }}>
+                    <Text style={{ fontSize: 12, color: colors.mutedForeground }}>
+                      <Text style={{ fontWeight: '700', color: colors.foreground }}>Explanation:</Text> {getExplanationText(challenge.questions[currentQuestion])}
+                    </Text>
+                  </View>
+                ) : null}
               </View>
 
-              <Button
-                onPress={handleSubmitAnswer}
-                disabled={selectedAnswer === null || showFeedback}
-                style={{ width: '100%', opacity: selectedAnswer === null || showFeedback ? 0.5 : 1 }}
-              >
-                <Text style={{ fontSize: 16, fontWeight: '700', color: '#fff' }}>{currentQuestion < challenge.questions.length - 1 ? 'Next Question' : 'Finish Quiz'}</Text>
-              </Button>
+              {!showFeedback ? (
+                <Button
+                  onPress={handleCheckAnswer}
+                  disabled={selectedAnswer === null}
+                  style={{ width: '100%', opacity: selectedAnswer === null ? 0.4 : 1 }}
+                >
+                  <Text style={{ fontSize: 16, fontWeight: '700', color: '#fff' }}>Check Answer</Text>
+                </Button>
+              ) : (
+                <Button
+                  onPress={handleNextQuestion}
+                  style={{ width: '100%' }}
+                >
+                  <Text style={{ fontSize: 16, fontWeight: '700', color: '#fff' }}>{currentQuestion < challenge.questions.length - 1 ? 'Next Question' : 'Finish Quiz'}</Text>
+                </Button>
+              )}
             </MotiView>
           )}
 

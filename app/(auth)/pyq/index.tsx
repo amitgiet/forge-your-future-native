@@ -200,13 +200,10 @@ export default function PYQIndexScreen() {
                   key={topic._id || index}
                   onPress={() => available && router.push({ pathname: '/(auth)/pyq/[topicId]', params: { topicId: topic._id } } as any)}
                   disabled={!available}
-                  style={({ pressed }) => [
-                    {
-                      width: '100%',
-                      opacity: available ? 1 : 0.6,
-                    },
-                    pressed && available && { opacity: 0.8, transform: [{ scale: 0.98 }] },
-                  ]}
+                  style={{
+                    width: '100%',
+                    opacity: available ? 1 : 0.6,
+                  }}
                 >
                   <GlassCard
                     small

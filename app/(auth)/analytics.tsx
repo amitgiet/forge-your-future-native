@@ -167,11 +167,11 @@ const Analytics = () => {
             </View>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Pressable onPress={fetchAll} disabled={loading} style={({ pressed }) => ({
+            <Pressable onPress={fetchAll} disabled={loading} style={{
               width: 40, height: 40, borderRadius: 12, backgroundColor: colors.background,
               alignItems: 'center', justifyContent: 'center',
-              opacity: loading ? 0.5 : pressed ? 0.7 : 1,
-            })}>
+              opacity: loading ? 0.5 : 1,
+            }}>
               {loading ? <ActivityIndicator size="small" color={colors.foreground} /> : <RefreshCw size={18} color={colors.foreground} />}
             </Pressable>
             {/* <View style={{

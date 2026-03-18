@@ -97,7 +97,7 @@ export const Button = ({
       <Pressable
         onPress={onPress}
         disabled={disabled || loading}
-        style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1 }, style]}
+        style={{ opacity: 1, ...style }}
       >
         <LinearGradient
           colors={[...gradientColors]}
@@ -115,11 +115,7 @@ export const Button = ({
     <Pressable
       onPress={onPress}
       disabled={disabled || loading}
-      style={({ pressed }) => [
-        getContainerStyle(),
-        { opacity: pressed ? 0.85 : disabled ? 0.5 : 1 },
-        style,
-      ]}
+      style={{ opacity: 1, ...style }}
     >
       {content}
     </Pressable>

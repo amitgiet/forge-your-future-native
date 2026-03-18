@@ -172,7 +172,7 @@ const Profile = () => {
       // In Native, we redirect to checkout URL or use native Razorpay SDK.
       // Assuming a web URL redirect for this parity fallback
       await Linking.openURL(checkout.paymentUrl);
-      
+
       setUpgradeMessage('Payment initiated. Waiting for confirmation...');
       const activated = await pollSubscriptionActivation();
       if (activated) {
@@ -230,13 +230,13 @@ const Profile = () => {
         <Pressable
           onPress={() => editing ? handleSave() : setEditing(true)}
           disabled={loading}
-          style={({ pressed }) => ({
+          style={{
             flexDirection: 'row', alignItems: 'center', gap: 6,
             paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12,
             backgroundColor: editing ? 'transparent' : colors.primary + '1A',
             borderWidth: 1, borderColor: editing ? 'transparent' : colors.primary + '33',
-            opacity: pressed || loading ? 0.7 : 1,
-          })}
+            opacity: 1,
+          }}
         >
           {editing && (
             <LinearGradient colors={[...gradients.primary]} start={gradientProps.start} end={gradientProps.end} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 12 }} />
@@ -461,7 +461,7 @@ const Profile = () => {
                 <Text style={{ fontSize: 12, color: colors.mutedForeground }}>Unlimited revisions & features</Text>
               </View>
             </View>
-            <Pressable onPress={() => { setUpgradeError(''); setUpgradeMessage(''); setShowUpgradeModal(true); }} style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
+            <Pressable onPress={() => { setUpgradeError(''); setUpgradeMessage(''); setShowUpgradeModal(true); }} style={{ opacity: 1 }}>
               <LinearGradient colors={[...gradients.primary]} start={gradientProps.start} end={gradientProps.end} style={{ width: '100%', paddingVertical: 12, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                 <Crown size={16} color="#fff" />
                 <Text style={{ fontSize: 14, fontWeight: '600', color: '#fff' }}>Upgrade - Rs 149/mo</Text>
@@ -524,11 +524,11 @@ const Profile = () => {
 
         {/* Logout */}
         <MotiView from={{ opacity: 0, translateY: 20 }} animate={{ opacity: 1, translateY: 0 }} transition={{ delay: 350 }}>
-          <Pressable onPress={logout} style={({ pressed }) => ({
+          <Pressable onPress={logout} style={{
             width: '100%', paddingVertical: 14, borderRadius: 20, backgroundColor: colors.card,
             borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-            opacity: pressed ? 0.7 : 1
-          })}>
+            opacity: 1
+          }}>
             <LogOut size={16} color={colors.destructive} />
             <Text style={{ fontSize: 14, fontWeight: '600', color: colors.destructive }}>Logout</Text>
           </Pressable>
@@ -583,7 +583,7 @@ const Profile = () => {
               {upgradeError ? <View style={{ padding: 12, borderRadius: 12, backgroundColor: colors.destructive + '1A', borderWidth: 1, borderColor: colors.destructive + '33' }}><Text style={{ fontSize: 12, color: colors.destructive }}>{upgradeError}</Text></View> : null}
               {upgradeMessage ? <View style={{ padding: 12, borderRadius: 12, backgroundColor: colors.primary + '1A', borderWidth: 1, borderColor: colors.primary + '33' }}><Text style={{ fontSize: 12, color: colors.primary }}>{upgradeMessage}</Text></View> : null}
 
-              <Pressable onPress={startPremiumCheckout} disabled={upgradeLoading} style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
+              <Pressable onPress={startPremiumCheckout} disabled={upgradeLoading} style={{ opacity: 1 }}>
                 <LinearGradient colors={[...gradients.primary]} start={gradientProps.start} end={gradientProps.end} style={{ width: '100%', paddingVertical: 14, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                   {upgradeLoading ? <ActivityIndicator size="small" color="#fff" /> : <><Crown size={16} color="#fff" /><Text style={{ fontSize: 14, fontWeight: '600', color: '#fff' }}>Pay {formatRupees(pricing.finalAmountPaise)}</Text></>}
                 </LinearGradient>

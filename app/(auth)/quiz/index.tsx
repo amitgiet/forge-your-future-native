@@ -25,7 +25,7 @@ export default function QuizIndexScreen() {
       if (res.data?.success) {
         setQuizzes(res.data.data || []);
       }
-    } catch {} finally {
+    } catch { } finally {
       setLoading(false);
     }
   };
@@ -59,7 +59,7 @@ export default function QuizIndexScreen() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <Pressable
               onPress={() => router.back()}
-              style={({ pressed }) => ({
+              style={{
                 width: 40,
                 height: 40,
                 borderRadius: 12,
@@ -68,8 +68,8 @@ export default function QuizIndexScreen() {
                 borderColor: colors.border,
                 alignItems: 'center',
                 justifyContent: 'center',
-                opacity: pressed ? 0.7 : 1
-              })}
+                opacity: 1
+              }}
             >
               <ArrowLeft size={20} color={colors.foreground} />
             </Pressable>
@@ -150,17 +150,17 @@ export default function QuizIndexScreen() {
                       {quiz.level && <Badge variant="primary">L{quiz.level}</Badge>}
                     </View>
                   </View>
-                  <Pressable 
+                  <Pressable
                     onPress={() => router.push({ pathname: '/(auth)/ai-quiz-session', params: { quizId: quiz._id } } as any)}
-                    style={({ pressed }) => ({
+                    style={{
                       width: 36,
                       height: 36,
                       borderRadius: 10,
                       backgroundColor: colors.primary + '10',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      opacity: pressed ? 0.7 : 1
-                    })}
+                      opacity: 1
+                    }}
                   >
                     <RotateCcw size={18} color={colors.primary} />
                   </Pressable>

@@ -34,21 +34,34 @@ export default function AddFriendScreen() {
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const performSearch = async (text: string) => {
-    if (text.trim().length < 2) return;
+    const q = text.trim();
+    if (q.length < 2) {
+      setError('Please enter at least 2 characters to search.');
+      return;
+    }
     setLoading(true);
     setSearched(true);
+    setError('');
     try {
-      const res = await apiService.social.searchUsers(text.trim());
+      const res = await apiService.social.searchUsers(q);
       if (res.data?.success) {
         setResults(res.data.data || []);
+        if ((res.data.data || []).length === 0) {
+          // no results — empty state will show
+        }
+      } else {
+        setError(res.data?.message || 'Search failed. Please try again.');
       }
-    } catch { } finally {
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Search failed. Check your connection.');
+    } finally {
       setLoading(false);
     }
   };
 
   const handleSearch = useCallback((text: string) => {
     setQuery(text);
+    setError('');
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (text.trim().length < 2) {
       setResults([]);
@@ -57,7 +70,7 @@ export default function AddFriendScreen() {
     }
     debounceRef.current = setTimeout(() => {
       performSearch(text);
-    }, 800);
+    }, 600);
   }, []);
 
   const handleSendRequest = async (userId: string, targetUser: any) => {
@@ -67,7 +80,7 @@ export default function AddFriendScreen() {
     try {
       await apiService.social.sendFriendRequest(userId);
       setSuccess(`Friend request sent to ${targetUser.name}!`);
-      
+
       if (currentUser) {
         notifyFriendRequestSent(userId, {
           _id: currentUser._id,
@@ -79,7 +92,7 @@ export default function AddFriendScreen() {
 
       setSentRequests((prev) => new Set([...prev, userId]));
       setResults(prev => prev.filter(r => r._id !== userId));
-      
+
       setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Failed to send request');
@@ -90,15 +103,35 @@ export default function AddFriendScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <View style={{ paddingTop: insets.top, paddingHorizontal: 16 }}>
+      {/* Sticky Header — title only */}
+      <View style={{
+        paddingTop: insets.top,
+        paddingHorizontal: 16,
+        backgroundColor: colors.card,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border,
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 10,
+      }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 12 }}>
-          <Pressable onPress={() => router.back()} style={{ padding: 8 }}>
-            <ArrowLeft size={24} color={colors.foreground} />
+          <Pressable onPress={() => router.back()} style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: colors.muted, alignItems: 'center', justifyContent: 'center' }}>
+            <ArrowLeft size={20} color={colors.foreground} />
           </Pressable>
-          <Text style={{ flex: 1, fontSize: 18, fontWeight: '700', color: colors.foreground, fontFamily: 'PlusJakartaSans_700Bold' }}>
+          <Text style={{ flex: 1, fontSize: 18, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold' }}>
             Add Friend
           </Text>
         </View>
+      </View>
+
+      <ScrollView
+        contentContainerStyle={{ padding: 16, paddingTop: insets.top + 60 + 16, paddingBottom: insets.bottom + 20 }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Search bar */}
         <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', marginBottom: 12 }}>
           <View style={{ flex: 1 }}>
             <Input
@@ -139,13 +172,7 @@ export default function AddFriendScreen() {
             </MotiView>
           ) : null}
         </AnimatePresence>
-      </View>
 
-      <ScrollView
-        contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 20 }}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
         {loading ? (
           <View style={{ alignItems: 'center', paddingVertical: 40 }}>
             <ActivityIndicator size="large" color={colors.primary} />
