@@ -1,10 +1,12 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'expo-router';
+import { Platform } from 'react-native';
 import { secureStore } from '@/lib/secureStore';
 import { apiService } from '@/lib/apiService';
 import { setAuthToken } from '@/lib/api';
 import { storage } from '@/lib/storage';
 import { EventEmitter } from '@/lib/events';
+import { ensurePushToken } from '@/lib/pushToken';
 
 interface User {
   _id: string;
@@ -45,8 +47,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const getAuthDeviceMeta = async () => {
+    const fcmToken = (await ensurePushToken()) || undefined;
+
+    return {
+      fcmToken,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+      userAgent: `neetforge_native_${Platform.OS}`,
+    };
+  };
+
   useEffect(() => {
     checkAuth();
+    ensurePushToken().catch(() => {});
 
     const unsub = EventEmitter.on('auth:unauthorized', () => {
       setUser(null);
@@ -102,7 +115,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const login = async (email: string, password: string) => {
-    const response = await apiService.auth.login({ email, password });
+    const deviceMeta = await getAuthDeviceMeta();
+    const response = await apiService.auth.login({ email, password, ...deviceMeta });
 
     if (response.data.success) {
       await secureStore.setItemAsync('token', response.data.token);
@@ -119,7 +133,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signup = async (name: string, email: string, password: string, phone?: string) => {
-    const response = await apiService.auth.register({ name, email, password, phone });
+    const deviceMeta = await getAuthDeviceMeta();
+    const response = await apiService.auth.register({ name, email, password, phone, ...deviceMeta });
 
     if (response.data.success) {
       await secureStore.setItemAsync('token', response.data.token);

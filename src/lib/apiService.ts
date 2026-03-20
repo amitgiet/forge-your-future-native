@@ -3,10 +3,24 @@ import api from './api';
 export const apiService = {
   // Auth APIs
   auth: {
-    login: (credentials: { email: string; password: string }) =>
+    login: (credentials: {
+      email: string;
+      password: string;
+      fcmToken?: string;
+      timezone?: string;
+      userAgent?: string;
+    }) =>
       api.post('/auth/login', credentials),
 
-    register: (userData: { name: string; email: string; password: string; phone?: string }) =>
+    register: (userData: {
+      name: string;
+      email: string;
+      password: string;
+      phone?: string;
+      fcmToken?: string;
+      timezone?: string;
+      userAgent?: string;
+    }) =>
       api.post('/auth/register', userData),
 
     logout: () => api.post('/auth/logout'),

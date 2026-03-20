@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>GOOGLE_APP_ID</key>
+  <string>1:123456789012:ios:demo1234567890</string>
+  <key>GCM_SENDER_ID</key>
+  <string>123456789012</string>
+  <key>PROJECT_ID</key>
+  <string>neetforge-demo</string>
+  <key>BUNDLE_ID</key>
+  <string>com.neetforge.app</string>
+  <key>API_KEY</key>
+  <string>DEMO_KEY_REPLACE_ME</string>
+  <key>CLIENT_ID</key>
+  <string>DEMO_CLIENT_ID_REPLACE_ME</string>
+  <key>REVERSED_CLIENT_ID</key>
+  <string>com.googleusercontent.apps.DEMO_CLIENT_ID_REPLACE_ME</string>
+  <key>PLIST_VERSION</key>
+  <string>1</string>
+</dict>
+</plist>
