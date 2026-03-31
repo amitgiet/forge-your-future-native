@@ -114,8 +114,9 @@ const NeuronzDashboard: React.FC = () => {
       <View style={{ gap: 12 }}>
         {LEVEL_CONFIG.map((conf, idx) => {
           const levelKey = `L${conf.level}`;
+          const dueAtLevel = dueQuestions?.byLevel?.[levelKey as keyof NonNullable<typeof dueQuestions>['byLevel']]?.length || 0;
           const totalAtLevel = dueQuestions?.totalByLevel?.[levelKey]?.total || 0;
-          const isClickable = totalAtLevel > 0 && !conf.locked;
+          const isClickable = dueAtLevel > 0 && !conf.locked;
 
           return (
             <MotiView
@@ -125,7 +126,7 @@ const NeuronzDashboard: React.FC = () => {
             // transition={{ type: 'timing', duration: 300, delay: idx * 60 }}
             >
               <Pressable
-                onPress={() => handleLevelClick(conf.level, totalAtLevel)}
+                onPress={() => handleLevelClick(conf.level, dueAtLevel)}
                 disabled={!isClickable}
               // style={{ opacity: isClickable ? 1 : 0.6 }}
               >
@@ -157,10 +158,13 @@ const NeuronzDashboard: React.FC = () => {
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <View style={{ alignItems: 'flex-end' }}>
                       <Text style={{ fontSize: 18, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold' }}>
-                        {totalAtLevel}
+                        {dueAtLevel}
                       </Text>
                       <Text style={{ fontSize: 10, color: colors.mutedForeground, fontFamily: 'Inter_400Regular', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                        Questions
+                        Due Now
+                      </Text>
+                      <Text style={{ fontSize: 10, color: colors.mutedForeground, fontFamily: 'Inter_400Regular' }}>
+                        {totalAtLevel} tracked
                       </Text>
                     </View>
                     {isClickable && (

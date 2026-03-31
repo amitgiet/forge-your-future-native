@@ -87,8 +87,8 @@ export const getMasteryProgress = createAsyncThunk('neuronz/getMasteryProgress',
 
 export const loadLevelQuestions = createAsyncThunk(
   'neuronz/loadLevelQuestions',
-  async (level: number) => {
-    const response = await apiService.neuronz.getLevelQuestions(level);
+  async ({ level, limit }: { level: number; limit?: number | null }) => {
+    const response = await apiService.neuronz.getLevelQuestions(level, limit);
     return { level, data: response.data.data };
   }
 );

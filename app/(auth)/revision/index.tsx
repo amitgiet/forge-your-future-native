@@ -2,12 +2,12 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MotiView } from 'moti';
-import { ArrowLeft, CheckCircle2, Brain } from 'lucide-react-native';
+import { ArrowLeft, Brain } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import NeuronzDashboard from '@/components/NeuronzDashboard';
-import QuizPlayer, { QuizQuestion } from '@/components/QuizPlayer';
+import NTATestPlayer, { NTAQuestion, NTASubmitData } from '@/components/NTATestPlayer';
 import BottomNav from '@/components/BottomNav';
 import {
   getMasteryProgress,
@@ -15,20 +15,15 @@ import {
   loadLevelQuestions,
   reviewBatch,
 } from '@/store/slices/neuronzSlice';
+import { buildLocalReportAttempt } from '@/lib/testReportAnalytics';
+import { setTestReportState } from '@/lib/testReportState';
 
-// Same helper functions as web — no changes
 type LevelQuestion = {
   questionId: string;
   question: string;
   options: string[];
   explanation?: string;
   correctIndex: number | null;
-};
-
-type AttemptSummary = {
-  attempted: number;
-  correct: number;
-  total: number;
 };
 
 const getCorrectIndex = (question: any, options: string[]): number | null => {
@@ -59,22 +54,87 @@ const normalizeLevelQuestions = (rawQuestions: any[] = []): LevelQuestion[] =>
     })
     .filter((q) => q.questionId && q.question && q.options.some((opt) => opt.trim().length > 0));
 
+const toNTAQuestion = (question: LevelQuestion, level: number): NTAQuestion => {
+  const optionMap = ['A', 'B', 'C', 'D'].reduce((acc, key, index) => {
+    acc[key] = question.options[index] || '';
+    return acc;
+  }, {} as Record<string, string>);
+
+  return {
+    _id: question.questionId,
+    id: question.questionId,
+    questionId: question.questionId,
+    type: 'mcq',
+    question: question.question,
+    explanation: question.explanation || '',
+    questionDiagramRefs: [],
+    explanationDiagramRefs: [],
+    resolvedQuestionDiagrams: [],
+    resolvedExplanationDiagrams: [],
+    subject: 'neuronz',
+    chapter: `Level ${level}`,
+    topic: 'Spaced Revision',
+    difficulty: '',
+    imageUrl: null,
+    explanationImageUrl: null,
+    imageId: null,
+    videoUrl: null,
+    correctAnswer: question.correctIndex,
+    typeData: {
+      options: question.options,
+      optionMap,
+      correctOption: question.correctIndex !== null ? String.fromCharCode(65 + question.correctIndex) : null,
+    },
+    isSupported: true,
+    unsupportedReason: null,
+  };
+};
+
 const Revision = () => {
   const dispatch = useAppDispatch();
   const router = useRouter();
   const params = useLocalSearchParams();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const { isLevelLoading, levelQuestions, error } = useAppSelector((state) => state.neuronz);
+  const { dueQuestions, isLoading, isLevelLoading, levelQuestions, error } = useAppSelector((state) => state.neuronz);
 
   const level = Number(params.level);
   const isLevelMode = Number.isInteger(level) && level >= 1 && level <= 7;
-  const [summary, setSummary] = useState<AttemptSummary | null>(null);
+  const [sessionMode, setSessionMode] = useState<'all' | '50' | null>(null);
+  const [quizStarted, setQuizStarted] = useState(false);
 
   useEffect(() => {
-    if (!isLevelMode) return;
-    void dispatch(loadLevelQuestions(level));
+    if (!isLevelMode) {
+      setSessionMode(null);
+      setQuizStarted(false);
+      return;
+    }
+
+    setSessionMode(null);
+    setQuizStarted(false);
+    void dispatch(loadDueQuestions());
   }, [dispatch, isLevelMode, level]);
+
+  const dueCount = useMemo(() => {
+    if (!isLevelMode || !dueQuestions) return 0;
+    const levelKey = `L${level}` as keyof typeof dueQuestions.byLevel;
+    return dueQuestions.byLevel[levelKey]?.length || 0;
+  }, [isLevelMode, dueQuestions, level]);
+
+  useEffect(() => {
+    if (!isLevelMode || sessionMode !== null) return;
+    setSessionMode(dueCount > 50 ? '50' : 'all');
+  }, [isLevelMode, dueCount, sessionMode]);
+
+  useEffect(() => {
+    if (!isLevelMode || sessionMode === null) return;
+    void dispatch(
+      loadLevelQuestions({
+        level,
+        limit: sessionMode === '50' ? 50 : null,
+      })
+    );
+  }, [dispatch, isLevelMode, level, sessionMode]);
 
   const normalizedQuestions = useMemo(() => {
     if (!isLevelMode) return [];
@@ -82,42 +142,29 @@ const Revision = () => {
     return normalizeLevelQuestions(raw);
   }, [isLevelMode, levelQuestions, level]);
 
-  const quizQuestions: QuizQuestion[] = useMemo(
-    () =>
-      normalizedQuestions.map((q) => ({
-        _id: q.questionId,
-        question: q.question,
-        type: 'mcq',
-        options: {
-          A: q.options[0],
-          B: q.options[1],
-          C: q.options[2],
-          D: q.options[3],
-        },
-        correctAnswer: q.correctIndex !== null ? ['A', 'B', 'C', 'D'][q.correctIndex] : undefined,
-        explanation: q.explanation,
-      })),
-    [normalizedQuestions]
+  const quizQuestions: NTAQuestion[] = useMemo(
+    () => normalizedQuestions.map((q) => toNTAQuestion(q, level)),
+    [normalizedQuestions, level]
   );
 
-  const handleSubmitLevelQuiz = async (data: {
-    answers: (string | string[] | number | null)[];
-    timeSpent: number;
-    markedForReview: number[];
-  }) => {
+  const batchLimit = sessionMode === '50' ? 50 : null;
+  const sessionQuestionCount = quizQuestions.length;
+  const remainingAfterSession = Math.max(dueCount - sessionQuestionCount, 0);
+
+  const handleSubmitLevelQuiz = async (data: NTASubmitData) => {
     if (!isLevelMode || normalizedQuestions.length === 0) return;
-    const payload: { questionId: string; wasCorrect: boolean }[] = [];
-    let attempted = 0;
-    let correct = 0;
+    const payload: { questionId: string; wasCorrect: boolean; timeSpent?: number }[] = [];
 
     normalizedQuestions.forEach((question, index) => {
       const answer = data.answers[index];
-      if (typeof answer !== 'string') return;
-      attempted += 1;
-      const answerIndex = ['A', 'B', 'C', 'D'].indexOf(answer);
+      if (answer?.kind !== 'mcq' || !Number.isInteger(answer.selectedOption)) return;
+      const answerIndex = Number(answer.selectedOption);
       const wasCorrect = question.correctIndex !== null && answerIndex === question.correctIndex;
-      if (wasCorrect) correct += 1;
-      payload.push({ questionId: question.questionId, wasCorrect });
+      payload.push({
+        questionId: question.questionId,
+        wasCorrect,
+        timeSpent: Number(data.meta[index]?.timeSpent || 0),
+      });
     });
 
     if (payload.length > 0) {
@@ -126,14 +173,31 @@ const Revision = () => {
       await dispatch(getMasteryProgress());
     }
 
-    setSummary({ attempted, correct, total: normalizedQuestions.length });
+    const attemptData = buildLocalReportAttempt(
+      quizQuestions,
+      data,
+      `NeuronZ Level ${level}`
+    );
+
+    const localAttemptId = `revision-${level}-${Date.now()}`;
+    setTestReportState(localAttemptId, {
+      attemptData,
+      questions: quizQuestions,
+      meta: data.meta,
+      timeTaken: data.timeTaken,
+      returnTo: '/(auth)/revision',
+      returnLabel: 'Back to Revision',
+    });
+
+    router.push({
+      pathname: '/(auth)/test/report/[attemptId]',
+      params: { attemptId: localAttemptId },
+    } as any);
   };
 
-  /* ── Dashboard view (no level param) — same as web */
   if (!isLevelMode) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.background }}>
-        {/* ── Sticky Header ── */}
         <View style={{
           paddingTop: insets.top,
           paddingHorizontal: 16,
@@ -151,7 +215,7 @@ const Revision = () => {
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'space-between',
-              paddingVertical: 8
+              paddingVertical: 8,
             }}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -192,65 +256,7 @@ const Revision = () => {
     );
   }
 
-  /* ── Summary view — same as web */
-  if (summary) {
-    const pct = summary.attempted > 0 ? Math.round((summary.correct / summary.attempted) * 100) : 0;
-    return (
-      <View style={{ flex: 1, backgroundColor: colors.background }}>
-        <ScrollView contentContainerStyle={{ padding: 16, paddingTop: insets.top + 8 }}>
-          <MotiView
-            from={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ type: 'timing', duration: 300 }}
-            style={{
-              backgroundColor: colors.card,
-              borderRadius: 16, borderWidth: 1, borderColor: colors.border,
-              padding: 24, marginTop: 32,
-              alignItems: 'center', gap: 16,
-            }}
-          >
-            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#22c55e20', alignItems: 'center', justifyContent: 'center' }}>
-              <CheckCircle2 size={32} color="#22c55e" />
-            </View>
-            <Text style={{ fontSize: 20, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold' }}>
-              Level {level} Complete!
-            </Text>
-
-            {/* 3-stat grid — same as web */}
-            <View style={{ flexDirection: 'row', gap: 12, width: '100%' }}>
-              {[
-                { value: summary.correct, label: 'Correct', color: colors.foreground },
-                { value: summary.attempted, label: 'Attempted', color: colors.foreground },
-                { value: `${pct}%`, label: 'Accuracy', color: colors.primary },
-              ].map((s, i) => (
-                <View key={i} style={{ flex: 1, backgroundColor: colors.muted + '80', borderRadius: 12, padding: 12, alignItems: 'center' }}>
-                  <Text style={{ fontSize: 24, fontWeight: '700', color: s.color, fontFamily: 'Inter_700Bold' }}>{s.value}</Text>
-                  <Text style={{ fontSize: 10, color: colors.mutedForeground, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 4 }}>{s.label}</Text>
-                </View>
-              ))}
-            </View>
-
-            <Pressable
-              onPress={() => router.replace('/(auth)/revision' as any)}
-              style={{
-                width: '100%', paddingVertical: 12, borderRadius: 12,
-                backgroundColor: colors.primary, alignItems: 'center',
-                opacity: 1,
-              }}
-            >
-              <Text style={{ fontSize: 14, fontWeight: '600', color: '#fff', fontFamily: 'Inter_600SemiBold' }}>
-                Back to NeuronZ
-              </Text>
-            </Pressable>
-          </MotiView>
-        </ScrollView>
-        <BottomNav />
-      </View>
-    );
-  }
-
-  /* ── Loading — same as web */
-  if (isLevelLoading) {
+  if (isLoading || sessionMode === null || (isLevelLoading && dueCount > 0 && normalizedQuestions.length === 0)) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator size="large" color={colors.primary} />
@@ -258,7 +264,6 @@ const Revision = () => {
     );
   }
 
-  /* ── Error — same as web */
   if (error) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -283,7 +288,6 @@ const Revision = () => {
     );
   }
 
-  /* ── Empty — same as web */
   if (quizQuestions.length === 0) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -315,16 +319,119 @@ const Revision = () => {
     );
   }
 
-  /* ── Quiz player — same props as web */
+  if (!quizStarted) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ padding: 16, paddingTop: insets.top + 8, paddingBottom: 120 }}
+          showsVerticalScrollIndicator={false}
+        >
+          <Pressable
+            onPress={() => router.replace('/(auth)/revision' as any)}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 }}
+          >
+            <ArrowLeft size={16} color={colors.mutedForeground} />
+            <Text style={{ fontSize: 14, color: colors.mutedForeground }}>Back</Text>
+          </Pressable>
+
+          <MotiView from={{ opacity: 0, translateY: 20 }} animate={{ opacity: 1, translateY: 0 }} style={{ gap: 16 }}>
+            <View style={{ backgroundColor: colors.card, borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 24 }}>
+              <Text style={{ fontSize: 28, fontWeight: '800', color: colors.foreground, fontFamily: 'Inter_700Bold' }}>
+                NeuronZ Level {level}
+              </Text>
+              <Text style={{ marginTop: 8, fontSize: 14, color: colors.mutedForeground, lineHeight: 22 }}>
+                Use the richer test player while keeping the NeuronZ level progression intact.
+              </Text>
+            </View>
+
+            <View style={{ backgroundColor: colors.card, borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 24 }}>
+              <Text style={{ fontSize: 20, fontWeight: '700', color: colors.foreground, marginBottom: 16, fontFamily: 'Inter_700Bold' }}>
+                Session Details
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <View style={{ flex: 1, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background, padding: 16 }}>
+                  <Text style={{ fontSize: 28, fontWeight: '800', color: colors.primary, fontFamily: 'Inter_700Bold' }}>{dueCount}</Text>
+                  <Text style={{ fontSize: 14, color: colors.mutedForeground }}>Due Questions</Text>
+                </View>
+                <View style={{ flex: 1, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background, padding: 16 }}>
+                  <Text style={{ fontSize: 28, fontWeight: '800', color: colors.primary, fontFamily: 'Inter_700Bold' }}>{sessionQuestionCount}</Text>
+                  <Text style={{ fontSize: 14, color: colors.mutedForeground }}>This Session</Text>
+                </View>
+              </View>
+              {remainingAfterSession > 0 ? (
+                <Text style={{ marginTop: 12, fontSize: 12, color: colors.mutedForeground }}>
+                  {remainingAfterSession} questions will remain due for the next batch.
+                </Text>
+              ) : null}
+            </View>
+
+            {dueCount > 50 ? (
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <Pressable
+                  onPress={() => setSessionMode('50')}
+                  style={{
+                    flex: 1,
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: sessionMode === '50' ? colors.primary : colors.border,
+                    backgroundColor: sessionMode === '50' ? colors.primary + '14' : colors.card,
+                    padding: 16,
+                  }}
+                >
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground }}>First 50</Text>
+                  <Text style={{ marginTop: 4, fontSize: 12, color: colors.mutedForeground, lineHeight: 18 }}>
+                    Finish a smaller batch first, then continue later.
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => setSessionMode('all')}
+                  style={{
+                    flex: 1,
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: sessionMode === 'all' ? colors.primary : colors.border,
+                    backgroundColor: sessionMode === 'all' ? colors.primary + '14' : colors.card,
+                    padding: 16,
+                  }}
+                >
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground }}>All Due</Text>
+                  <Text style={{ marginTop: 4, fontSize: 12, color: colors.mutedForeground, lineHeight: 18 }}>
+                    Load every due question in this level.
+                  </Text>
+                </Pressable>
+              </View>
+            ) : null}
+
+            <View style={{ backgroundColor: colors.card, borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 24 }}>
+              <Text style={{ fontSize: 20, fontWeight: '700', color: colors.foreground, marginBottom: 12, fontFamily: 'Inter_700Bold' }}>
+                Level Logic
+              </Text>
+              <Text style={{ fontSize: 14, color: colors.mutedForeground, lineHeight: 22 }}>
+                Correct answers move up to the next NeuronZ level and get their next revision time from the spaced-repetition logic. Wrong answers stay in the same level and are rescheduled from there.
+              </Text>
+            </View>
+
+            <Pressable onPress={() => setQuizStarted(true)} style={{ opacity: 1 }}>
+              <View style={{ backgroundColor: colors.primary, borderRadius: 14, paddingVertical: 16, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontSize: 18, fontWeight: '800', color: '#fff', fontFamily: 'Inter_700Bold' }}>
+                  {batchLimit ? `Start First ${Math.min(batchLimit, sessionQuestionCount || dueCount)}` : `Start All ${sessionQuestionCount || dueCount}`}
+                </Text>
+              </View>
+            </Pressable>
+          </MotiView>
+        </ScrollView>
+        <BottomNav />
+      </View>
+    );
+  }
+
   return (
-    <QuizPlayer
-      title={`NeuronZ Level ${level}`}
+    <NTATestPlayer
       questions={quizQuestions}
-      showPalette={false}
-      showTimer={false}
-      allowReviewMarking={false}
+      title={`NeuronZ Level ${level}`}
+      duration={12 * 60 * 60}
       onSubmit={handleSubmitLevelQuiz}
-      config={{ showDifficulty: false, showMarks: false, showExplanations: true }}
     />
   );
 };

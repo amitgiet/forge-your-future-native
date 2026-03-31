@@ -94,6 +94,7 @@ export default function QuizResultsScreen() {
     weakAreas?: string;
     reviewQuestions?: string;
     ntaMeta?: string;
+    quizId?: string;
   }>();
 
   const [openExplanations, setOpenExplanations] = useState<Record<string, boolean>>({});

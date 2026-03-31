@@ -23,6 +23,13 @@ export const apiService = {
     }) =>
       api.post('/auth/register', userData),
 
+    googleLogin: (data: {
+      idToken: string;
+      fcmToken?: string;
+      timezone?: string;
+      userAgent?: string;
+    }) => api.post('/auth/google', data),
+
     logout: () => api.post('/auth/logout'),
 
     getProfile: () => api.get('/auth/me'),
@@ -125,6 +132,9 @@ export const apiService = {
     getRandomQuestions: (filters: any) => api.post('/questions/random', filters),
 
     getPYQs: (filters: any) => api.get('/questions/pyq', { params: filters }),
+
+    resolveDiagrams: (data: { items: Array<{ questionId: string; subject?: string | null; refs?: string[]; imageUrl?: string | null }> }) =>
+      api.post('/questions/resolve-diagrams', data),
   },
 
   // Chapters APIs
@@ -179,6 +189,14 @@ export const apiService = {
     getTopicProgress: (topicTitle: string) => api.get(`/formulas/progress/topic/${encodeURIComponent(topicTitle)}`),
     updateCardProgress: (cardId: string, data: { status?: string; isBookmarked?: boolean; chapterTitle?: string; topicTitle?: string }) =>
       api.post(`/formulas/progress/${cardId}`, data),
+  },
+
+  chapterResources: {
+    getChapters: (subject: 'biology' | 'chemistry' | 'physics') =>
+      api.get(`/chapter-resources/${subject}/chapters`),
+
+    getChapterDetail: (subject: 'biology' | 'chemistry' | 'physics', slug: string) =>
+      api.get(`/chapter-resources/${subject}/chapters/${encodeURIComponent(slug)}`),
   },
 
   // Learning Paths APIs
@@ -303,7 +321,17 @@ export const apiService = {
 
     startTest: (testId: string) => api.post(`/tests/${testId}/start`),
 
-    saveAnswer: (attemptId: string, data: { questionId: string; selectedOption: string; timeSpent: number; isMarkedForReview: boolean }) =>
+    saveAnswer: (
+      attemptId: string,
+      data: {
+        questionId: string;
+        selectedOption?: string | null;
+        answerType?: string;
+        answerPayload?: any;
+        timeSpent: number;
+        isMarkedForReview: boolean;
+      }
+    ) =>
       api.post(`/tests/attempts/${attemptId}/answer`, data),
 
     submitTest: (attemptId: string) => api.post(`/tests/attempts/${attemptId}/submit`),
@@ -473,6 +501,9 @@ export const apiService = {
 
     getResourceReactions: (chapterId: string) =>
       api.get(`/curriculum/reactions/${encodeURIComponent(chapterId)}`),
+
+    getImageFallback: (subject: string, questionId: string) =>
+      api.get(`/curriculum/image-fallback/${subject}/${questionId}`),
   },
 
   // Test Series Hierarchy APIs

@@ -7,6 +7,11 @@ import { setAuthToken } from '@/lib/api';
 import { storage } from '@/lib/storage';
 import { EventEmitter } from '@/lib/events';
 import { ensurePushToken } from '@/lib/pushToken';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+
+GoogleSignin.configure({
+  // webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID, // Use actual Client ID
+});
 
 interface User {
   _id: string;
@@ -27,6 +32,7 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   signup: (name: string, email: string, password: string, phone?: string) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
   logout: () => void;
   demoLogin: () => void;
   isAuthenticated: boolean;
@@ -145,6 +151,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const loginWithGoogle = async () => {
+    try {
+      await GoogleSignin.hasPlayServices();
+      const userInfo = await GoogleSignin.signIn();
+      const idToken = userInfo.data?.idToken;
+      
+      if (!idToken) throw new Error('No ID token found');
+
+      const deviceMeta = await getAuthDeviceMeta();
+      // Assume apiService.auth.googleLogin exists
+      const response = await (apiService.auth as any).googleLogin({ idToken, ...deviceMeta });
+
+      if (response.data?.success) {
+        await secureStore.setItemAsync('token', response.data.token);
+        setAuthToken(response.data.token);
+        setUser(response.data.user);
+        await syncPreferredLanguage(response.data.user?.profile?.preferredLanguage);
+
+        if (response.data.user.onboardingCompleted === false) {
+          router.replace('/(auth)/onboarding');
+        } else {
+          router.replace('/(auth)/(tabs)');
+        }
+      }
+    } catch (error) {
+      console.error('Google Sign-In Error:', error);
+      throw error;
+    }
+  };
+
   const logout = async () => {
     await secureStore.deleteItemAsync('token');
     setAuthToken(null);
@@ -173,6 +209,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         loading,
         login,
         signup,
+        loginWithGoogle,
         logout,
         demoLogin,
         isAuthenticated: !!user,

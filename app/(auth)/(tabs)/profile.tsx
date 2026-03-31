@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { MotiView } from 'moti';
 import {
   User, Flame, Target, BookOpen, Award, Globe, Crown, Zap, LogOut,
-  Edit2, Save, ChevronLeft, Shield, X, Copy, Check
+  Edit2, Save, ChevronLeft, Shield, X, Copy, Check, CheckCircle2, AlertCircle, BadgeInfo
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -47,13 +47,6 @@ const Profile = () => {
   const [upgradeError, setUpgradeError] = useState('');
   const [upgradeMessage, setUpgradeMessage] = useState('');
   const [copiedReferral, setCopiedReferral] = useState(false);
-
-  const achievements = [
-    { icon: '🔥', label: '7 Day Streak', unlocked: true },
-    { icon: '📚', label: 'First Quiz', unlocked: true },
-    { icon: '🎯', label: '100% Accuracy', unlocked: false },
-    { icon: '🏆', label: 'Top 10%', unlocked: false },
-  ];
 
   useEffect(() => { loadProfile(); }, []);
 
@@ -426,49 +419,43 @@ const Profile = () => {
           )}
         </MotiView>
 
-        {/* Achievements */}
+        {/* Study Snapshot */}
         <MotiView from={{ opacity: 0, translateY: 20 }} animate={{ opacity: 1, translateY: 0 }} transition={{ delay: 150 }}
           style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 24, padding: 16 }}
         >
-          <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground, marginBottom: 12, fontFamily: 'Inter_700Bold' }}>Achievements</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-            {achievements.map((a, i) => (
-              <View key={a.label} style={{
-                width: '23%', aspectRatio: 0.8, alignItems: 'center', justifyContent: 'center', padding: 8,
-                borderRadius: 16, borderWidth: 1,
-                backgroundColor: a.unlocked ? colors.warning + '0D' : colors.muted + '4D',
-                borderColor: a.unlocked ? colors.warning + '33' : colors.border,
-                opacity: a.unlocked ? 1 : 0.5
-              }}>
-                <Text style={{ fontSize: 24, marginBottom: 4 }}>{a.icon}</Text>
-                <Text style={{ fontSize: 10, fontWeight: '500', color: colors.foreground, textAlign: 'center' }}>{a.label}</Text>
-              </View>
-            ))}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: colors.primary + '1A', alignItems: 'center', justifyContent: 'center' }}>
+              <BadgeInfo size={16} color={colors.primary} />
+            </View>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground }}>Study Snapshot</Text>
+          </View>
+          <View style={{ gap: 10 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+              <Text style={{ fontSize: 14, color: colors.mutedForeground }}>Plan</Text>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: colors.foreground, textTransform: 'capitalize' }}>
+                {profileData?.subscription?.plan || 'Free'}
+              </Text>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+              <Text style={{ fontSize: 14, color: colors.mutedForeground }}>Language</Text>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: colors.foreground }}>
+                {language === 'en' ? 'English' : 'Hindi'}
+              </Text>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+              <Text style={{ fontSize: 14, color: colors.mutedForeground }}>Target Year</Text>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: colors.foreground }}>
+                {profileData?.profile?.targetYear || 'Not set'}
+              </Text>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={{ fontSize: 14, color: colors.mutedForeground }}>Weak Subjects</Text>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: colors.foreground }}>
+                {profileData?.profile?.weakSubjects?.length ? `${profileData.profile.weakSubjects.length} selected` : 'None'}
+              </Text>
+            </View>
           </View>
         </MotiView>
-
-        {/* Upgrade CTA */}
-        {profileData?.subscription?.plan === 'free' && (
-          <MotiView from={{ opacity: 0, translateY: 20 }} animate={{ opacity: 1, translateY: 0 }} transition={{ delay: 200 }}
-            style={{ borderRadius: 24, padding: 16, borderWidth: 2, borderColor: colors.primary + '33', backgroundColor: colors.primary + '0D' }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-              <LinearGradient colors={[...gradients.primary]} start={gradientProps.start} end={gradientProps.end} style={{ width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' }}>
-                <Crown size={24} color="#fff" />
-              </LinearGradient>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 16, fontWeight: '700', color: colors.foreground, fontFamily: 'Inter_700Bold' }}>Go Pro</Text>
-                <Text style={{ fontSize: 12, color: colors.mutedForeground }}>Unlimited revisions & features</Text>
-              </View>
-            </View>
-            <Pressable onPress={() => { setUpgradeError(''); setUpgradeMessage(''); setShowUpgradeModal(true); }} style={{ opacity: 1 }}>
-              <LinearGradient colors={[...gradients.primary]} start={gradientProps.start} end={gradientProps.end} style={{ width: '100%', paddingVertical: 12, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                <Crown size={16} color="#fff" />
-                <Text style={{ fontSize: 14, fontWeight: '600', color: '#fff' }}>Upgrade - Rs 149/mo</Text>
-              </LinearGradient>
-            </Pressable>
-          </MotiView>
-        )}
 
         {/* Referral Code */}
         <MotiView from={{ opacity: 0, translateY: 20 }} animate={{ opacity: 1, translateY: 0 }} transition={{ delay: 250 }}

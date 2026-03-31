@@ -1,28 +1,30 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { View, Text, ScrollView, Pressable, Image, TextInput, Alert, Modal, Dimensions } from 'react-native';
+import { View, Text, ScrollView, Pressable, Image, TextInput, Modal, Linking, Platform, Animated, Easing, Dimensions } from 'react-native';
 import { MotiView } from 'moti';
+import { WebView } from 'react-native-webview';
 import {
   ChevronLeft, ChevronRight, Clock, Menu, X, Flag, Star, StickyNote,
-  AlertTriangle, Eraser, CheckCircle2, Send, Eye, BookOpen
+  AlertTriangle, Eraser, CheckCircle2, Send, Eye, BookOpen, ArrowUp, ArrowDown, RotateCcw
 } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import DiagramGallery from '@/components/questions/DiagramGallery';
+import apiService from '@/lib/apiService';
+import {
+  AnswerPayload,
+  NormalizedQuestion,
+  MatchPair,
+  OrderItem,
+  isAnswerPayloadAttempted,
+  getCorrectOptionIndex,
+} from '@/lib/questionNormalization';
+import { ColorTokens } from '@/theme/colors';
 
-export interface NTAQuestion {
-  _id?: string;
-  id?: string;
-  question: string;
-  options: Record<string, string> | string[];
-  correctAnswer?: string | number | null;
-  explanation?: string;
-  subject?: string;
-  chapter?: string;
-  topic?: string;
-  difficulty?: string;
-  imageUrl?: string;
-}
+const PALETTE_DRAWER_WIDTH = Math.min(Dimensions.get('window').width * 0.85, 400);
+
+export type NTAQuestion = NormalizedQuestion;
 
 export interface NTASection {
   name: string;
@@ -35,7 +37,7 @@ export type QuestionState = 'not-visited' | 'not-answered' | 'answered' | 'marke
 
 export interface QuestionMeta {
   state: QuestionState;
-  selectedOption: number | null;
+  answerPayload: AnswerPayload | null;
   bookmarked: boolean;
   note: string;
   timeSpent: number;
@@ -47,13 +49,13 @@ export interface NTATestPlayerProps {
   title?: string;
   duration: number;
   onSubmit: (data: NTASubmitData) => void;
-  onAnswerChange?: (questionIndex: number, answer: number | null, meta: QuestionMeta) => void;
+  onAnswerChange?: (questionIndex: number, answer: AnswerPayload | null, meta: QuestionMeta) => void;
   initialMeta?: QuestionMeta[];
   readOnly?: boolean;
 }
 
 export interface NTASubmitData {
-  answers: (number | null)[];
+  answers: (AnswerPayload | null)[];
   meta: QuestionMeta[];
   timeTaken: number;
 }
@@ -65,11 +67,14 @@ const DEFAULT_SECTIONS: NTASection[] = [
   { name: 'Zoology', emoji: '🐾', startIndex: 135, endIndex: 179 },
 ];
 
-function getOptionArray(q: NTAQuestion): string[] {
-  if (!q || q.options === null || q.options === undefined) return ['', '', '', ''];
+const isAttempted = (answerPayload: AnswerPayload | null | undefined) => isAnswerPayloadAttempted(answerPayload);
 
-  if (Array.isArray(q.options)) {
-    return q.options.map((opt: any) => {
+function getOptionArray(q: NTAQuestion): string[] {
+  const options = q.options ?? q.typeData?.options;
+  if (!q || options === null || options === undefined) return ['', '', '', ''];
+
+  if (Array.isArray(options)) {
+    return options.map((opt: any) => {
       if (typeof opt === 'string') return opt;
       if (opt && typeof opt === 'object') {
         if (typeof opt.text === 'string') return opt.text;
@@ -82,9 +87,9 @@ function getOptionArray(q: NTAQuestion): string[] {
     });
   }
 
-  if (typeof q.options === 'object') {
+  if (typeof options === 'object') {
     return ['A', 'B', 'C', 'D'].map((k) => {
-      const value: any = (q.options as Record<string, any>)?.[k];
+      const value: any = (options as Record<string, any>)?.[k];
       if (typeof value === 'string') return value;
       if (value && typeof value === 'object') {
         if (typeof value.text === 'string') return value.text;
@@ -105,6 +110,316 @@ function formatTime(s: number): string {
   const sec = s % 60;
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
 }
+
+const YOUTUBE_ID_PATTERN = /^[A-Za-z0-9_-]{11}$/;
+
+const getEmbeddableVideoUrl = (value: string | null | undefined) => {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (YOUTUBE_ID_PATTERN.test(trimmed)) return `https://www.youtube.com/embed/${trimmed}`;
+  const match = trimmed.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&?/]+)/);
+  return match?.[1] ? `https://www.youtube.com/embed/${match[1]}` : trimmed;
+};
+
+const getVideoSource = (question: NTAQuestion) => {
+  const candidates = [question.videoUrl, question.typeData?.videoUrl, question.imageId, question.question];
+  for (const candidate of candidates) {
+    const embeddableUrl = getEmbeddableVideoUrl(candidate as string | null | undefined);
+    if (embeddableUrl) {
+      return {
+        embedUrl: embeddableUrl,
+        rawValue: typeof candidate === 'string' ? candidate.trim() : '',
+      };
+    }
+  }
+  return { embedUrl: null, rawValue: '' };
+};
+
+interface RendererProps {
+  question: NTAQuestion;
+  answerPayload: AnswerPayload | null;
+  onChange: (answer: AnswerPayload | null) => void;
+  readOnly: boolean;
+  colors: ColorTokens;
+}
+
+const MCQRenderer: React.FC<RendererProps> = ({ question, answerPayload, onChange, readOnly, colors }) => {
+  const options = Array.isArray(question.typeData?.options) ? question.typeData.options : getOptionArray(question);
+  const selected = answerPayload?.kind === 'mcq' ? answerPayload.selectedOption : null;
+  const correctIdx = getCorrectOptionIndex(question as NormalizedQuestion);
+  const labels = ['A', 'B', 'C', 'D'];
+
+  return (
+    <View style={{ gap: 10 }}>
+      {options.map((opt: any, i: number) => {
+        const isSelected = selected === i;
+        let bg = colors.card;
+        let borderColor = colors.border;
+        let textColor = colors.foreground;
+        let badgeBg = 'transparent';
+        let badgeBorder = colors.mutedForeground + '4D';
+        let badgeText = colors.mutedForeground;
+
+        if (readOnly) {
+          if (correctIdx === i) {
+            borderColor = colors.success;
+            bg = colors.success + '1A';
+            badgeBg = colors.success;
+            badgeBorder = colors.success;
+            badgeText = '#fff';
+          } else if (isSelected && correctIdx !== i) {
+            borderColor = colors.destructive;
+            bg = colors.destructive + '1A';
+            badgeBg = colors.destructive;
+            badgeBorder = colors.destructive;
+            badgeText = '#fff';
+          }
+        } else if (isSelected) {
+          borderColor = colors.primary;
+          bg = colors.primary + '1A';
+          badgeBg = colors.primary;
+          badgeBorder = colors.primary;
+          badgeText = '#fff';
+        }
+
+        return (
+          <Pressable
+            key={i}
+            onPress={() => onChange({ kind: 'mcq', selectedOption: i })}
+            disabled={readOnly}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'flex-start',
+              padding: 14,
+              borderRadius: 12,
+              borderWidth: 2,
+              borderColor,
+              backgroundColor: bg,
+            }}
+          >
+            <View style={{ width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: badgeBorder, backgroundColor: badgeBg, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: badgeText }}>{labels[i]}</Text>
+            </View>
+            <Text style={{ flex: 1, fontSize: 14, lineHeight: 22, color: textColor, marginTop: 2 }}>{String(opt || '')}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+};
+
+const FillupRenderer: React.FC<RendererProps> = ({ answerPayload, onChange, readOnly, colors }) => (
+  <View style={{ borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, padding: 12 }}>
+    <Text style={{ fontSize: 12, fontWeight: '700', color: colors.mutedForeground, marginBottom: 8 }}>Your Answer</Text>
+    <TextInput
+      value={answerPayload?.kind === 'fillup' ? answerPayload.value : ''}
+      placeholder="Type your answer"
+      placeholderTextColor={colors.mutedForeground}
+      onChangeText={(value) => onChange({ kind: 'fillup', value })}
+      editable={!readOnly}
+      multiline
+      style={{ minHeight: 44, padding: 10, borderRadius: 12, backgroundColor: colors.muted + '22', color: colors.foreground }}
+    />
+  </View>
+);
+
+const MatchRenderer: React.FC<RendererProps> = ({ question, answerPayload, onChange, readOnly, colors }) => {
+  const pairs: MatchPair[] = Array.isArray(question.typeData?.pairs) ? question.typeData.pairs : [];
+  const selectedPairs = answerPayload?.kind === 'match' ? answerPayload.pairs : {};
+  const [activeLeft, setActiveLeft] = useState<string | null>(null);
+  const rightColumn = useMemo(() => [...pairs].sort((a, b) => a.right.localeCompare(b.right)), [pairs]);
+
+  const assign = (leftId: string, rightValue: string) => {
+    onChange({ kind: 'match', pairs: { ...selectedPairs, [leftId]: rightValue } });
+    setActiveLeft(null);
+  };
+
+  return (
+    <View style={{ gap: 12 }}>
+      <View style={{ borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, padding: 12 }}>
+        <Text style={{ fontSize: 12, fontWeight: '700', color: colors.mutedForeground, marginBottom: 8 }}>Column A</Text>
+        {pairs.map((pair) => (
+          <Pressable
+            key={pair.id}
+            onPress={() => setActiveLeft(pair.id)}
+            disabled={readOnly}
+            style={{ borderRadius: 12, borderWidth: 1, borderColor: activeLeft === pair.id ? colors.primary : colors.border, backgroundColor: activeLeft === pair.id ? colors.primary + '1A' : colors.background, padding: 12, marginBottom: 8 }}
+          >
+            <Text style={{ fontSize: 14, color: colors.foreground }}>{pair.left}</Text>
+            <Text style={{ fontSize: 12, color: colors.mutedForeground, marginTop: 4 }}>{selectedPairs[pair.id] ? `Matched: ${selectedPairs[pair.id]}` : 'Select this row, then choose from Column B'}</Text>
+          </Pressable>
+        ))}
+      </View>
+      <View style={{ borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, padding: 12 }}>
+        <Text style={{ fontSize: 12, fontWeight: '700', color: colors.mutedForeground, marginBottom: 8 }}>Column B</Text>
+        {rightColumn.map((pair) => {
+          const linked = Object.entries(selectedPairs).find(([, value]) => value === pair.right)?.[0];
+          return (
+            <Pressable
+              key={`${pair.id}-right`}
+              onPress={() => activeLeft && assign(activeLeft, pair.right)}
+              disabled={readOnly || !activeLeft}
+              style={{
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: linked ? colors.primary : colors.border,
+                backgroundColor: linked ? colors.primary + '1A' : colors.background,
+                padding: 12,
+                marginBottom: 8,
+                opacity: !activeLeft && !readOnly ? 0.6 : 1,
+              }}
+            >
+              <Text style={{ fontSize: 14, color: colors.foreground }}>{pair.right}</Text>
+              <Text style={{ fontSize: 12, color: colors.mutedForeground, marginTop: 4 }}>{linked ? `Assigned to ${pairs.find((item) => item.id === linked)?.left || 'left item'}` : 'Tap after selecting a left item'}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+};
+
+const OrderRenderer: React.FC<RendererProps> = ({ question, answerPayload, onChange, readOnly, colors }) => {
+  const items: OrderItem[] = Array.isArray(question.typeData?.items) ? question.typeData.items : [];
+  const orderedIds = answerPayload?.kind === 'order' && answerPayload.orderedIds.length ? answerPayload.orderedIds : items.map((item) => item.id);
+
+  const move = (index: number, direction: -1 | 1) => {
+    const nextIndex = index + direction;
+    if (nextIndex < 0 || nextIndex >= orderedIds.length) return;
+    const next = [...orderedIds];
+    [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
+    onChange({ kind: 'order', orderedIds: next });
+  };
+
+  return (
+    <View style={{ gap: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, padding: 12 }}>
+      <Text style={{ fontSize: 12, fontWeight: '700', color: colors.mutedForeground, marginBottom: 8 }}>Arrange in the correct order</Text>
+      {orderedIds.map((id, index) => {
+        const item = items.find((entry) => entry.id === id);
+        return (
+          <View key={id} style={{ borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background, padding: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Text style={{ fontSize: 14, color: colors.foreground }}>{index + 1}. {item?.text || id}</Text>
+            {!readOnly && (
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <Pressable onPress={() => move(index, -1)} disabled={index === 0} style={{ padding: 8, borderRadius: 10, backgroundColor: index === 0 ? colors.muted : colors.primary + '22' }}>
+                  <ArrowUp size={16} color={index === 0 ? colors.mutedForeground : colors.primary} />
+                </Pressable>
+                <Pressable onPress={() => move(index, 1)} disabled={index === orderedIds.length - 1} style={{ padding: 8, borderRadius: 10, backgroundColor: index === orderedIds.length - 1 ? colors.muted : colors.primary + '22' }}>
+                  <ArrowDown size={16} color={index === orderedIds.length - 1 ? colors.mutedForeground : colors.primary} />
+                </Pressable>
+              </View>
+            )}
+          </View>
+        );
+      })}
+    </View>
+  );
+};
+
+const FlashcardRenderer: React.FC<RendererProps> = ({ question, answerPayload, onChange, readOnly, colors }) => {
+  const flipped = answerPayload?.kind === 'flashcard' ? answerPayload.flipped : false;
+  const completed = answerPayload?.kind === 'flashcard' ? answerPayload.completed : false;
+  const front = question.typeData?.front || question.question;
+  const back = question.typeData?.back || question.explanation;
+
+  const update = (next: Partial<{ flipped: boolean; completed: boolean }>) => {
+    onChange({ kind: 'flashcard', flipped: next.flipped ?? flipped, completed: next.completed ?? completed });
+  };
+
+  return (
+    <View style={{ gap: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, padding: 12 }}>
+      <View style={{ minHeight: 180, borderRadius: 12, borderWidth: 1, borderColor: colors.primary, backgroundColor: colors.primary + '11', padding: 16, alignItems: 'center', justifyContent: 'center' }}>
+        <Text style={{ fontSize: 14, color: colors.foreground, textAlign: 'center' }}>{(flipped ? back : front || '').replace(/\n/g, '\n').replace(/\/n/g, '\n')}</Text>
+      </View>
+      <View style={{ flexDirection: 'row', gap: 10 }}>
+        <Button variant="outline" size="sm" style={{ flex: 1 }} disabled={readOnly} onPress={() => update({ flipped: !flipped })}>
+          <RotateCcw size={16} color={colors.foreground} />
+          <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: '700', marginLeft: 6 }}>{flipped ? 'Show Front' : 'Flip Card'}</Text>
+        </Button>
+        <Button size="sm" style={{ flex: 1 }} disabled={readOnly} onPress={() => update({ completed: !completed, flipped: true })}>
+          <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>{completed ? 'Completed' : 'Mark Complete'}</Text>
+        </Button>
+      </View>
+    </View>
+  );
+};
+
+const VideoRenderer: React.FC<RendererProps> = ({ question, answerPayload, onChange, readOnly, colors }) => {
+  const completed = answerPayload?.kind === 'video' ? answerPayload.completed : false;
+  const { embedUrl: videoUrl, rawValue: rawVideoValue } = getVideoSource(question);
+  const prompt = question.typeData?.prompt || question.question;
+  const openVideoUrl = rawVideoValue ? (YOUTUBE_ID_PATTERN.test(rawVideoValue) ? `https://www.youtube.com/watch?v=${rawVideoValue}` : rawVideoValue) : null;
+
+  return (
+    <View style={{ gap: 12 }}>
+      {videoUrl ? (
+        <View style={{ borderRadius: 12, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', backgroundColor: colors.card, height: 220 }}>
+          {Platform.OS === 'web' ? (
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+              <Text style={{ color: colors.mutedForeground, textAlign: 'center' }}>
+                Open the video using the button below in web preview.
+              </Text>
+            </View>
+          ) : (
+            <WebView
+              source={{ uri: videoUrl }}
+              style={{ flex: 1 }}
+              javaScriptEnabled
+              domStorageEnabled
+              allowsFullscreenVideo
+              mediaPlaybackRequiresUserAction
+              startInLoadingState
+            />
+          )}
+        </View>
+      ) : (
+        <View style={{ borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, padding: 12 }}>
+          <Text style={{ color: colors.mutedForeground }}>Video URL is not available for this question.</Text>
+        </View>
+      )}
+      {prompt ? (
+        <View style={{ borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, padding: 12 }}>
+          <Text style={{ color: colors.foreground, fontSize: 14, lineHeight: 20 }}>
+            {String(prompt || '').replace(/\\n/g, '\n').replace(/\/n/g, '\n')}
+          </Text>
+        </View>
+      ) : null}
+      <View style={{ flexDirection: 'row', gap: 10 }}>
+        <Button size="sm" style={{ flex: 1 }} disabled={readOnly} onPress={() => onChange({ kind: 'video', completed: !completed })}>
+          <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>{completed ? 'Completed' : 'Mark Watched'}</Text>
+        </Button>
+        {openVideoUrl ? (
+          <Button variant="outline" size="sm" style={{ flex: 1 }} onPress={() => Linking.openURL(openVideoUrl)}>
+            <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: '700' }}>Open Video</Text>
+          </Button>
+        ) : null}
+      </View>
+    </View>
+  );
+};
+
+const UnsupportedRenderer: React.FC<RendererProps> = ({ question, colors }) => (
+  <View style={{ borderRadius: 12, borderWidth: 1, borderColor: '#dc2626', backgroundColor: '#fee2e2', padding: 14 }}>
+    <Text style={{ fontSize: 14, fontWeight: '700', color: '#b91c1c' }}>This question type is not available in the current dataset.</Text>
+    <Text style={{ marginTop: 6, color: '#991b1b' }}>Type: {question.type}</Text>
+    <Text style={{ marginTop: 4, color: '#991b1b' }}>Question ID: {String(question.questionId || question.id || '')}</Text>
+    <Text style={{ marginTop: 6, color: '#b91c1c' }}>{question.unsupportedReason || 'Missing structured data for rendering.'}</Text>
+  </View>
+);
+
+const QuestionRenderer: React.FC<RendererProps> = ({ question, answerPayload, onChange, readOnly, colors }) => {
+  if (question.isSupported === false) return <UnsupportedRenderer question={question} answerPayload={answerPayload} onChange={onChange} readOnly={readOnly} colors={colors} />;
+  switch (question.type) {
+    case 'mcq': return <MCQRenderer question={question} answerPayload={answerPayload} onChange={onChange} readOnly={readOnly} colors={colors} />;
+    case 'fillup': return <FillupRenderer question={question} answerPayload={answerPayload} onChange={onChange} readOnly={readOnly} colors={colors} />;
+    case 'match': return <MatchRenderer question={question} answerPayload={answerPayload} onChange={onChange} readOnly={readOnly} colors={colors} />;
+    case 'order': return <OrderRenderer question={question} answerPayload={answerPayload} onChange={onChange} readOnly={readOnly} colors={colors} />;
+    case 'flashcard': return <FlashcardRenderer question={question} answerPayload={answerPayload} onChange={onChange} readOnly={readOnly} colors={colors} />;
+    case 'video': return <VideoRenderer question={question} answerPayload={answerPayload} onChange={onChange} readOnly={readOnly} colors={colors} />;
+    default: return <UnsupportedRenderer question={question} answerPayload={answerPayload} onChange={onChange} readOnly={readOnly} colors={colors} />;
+  }
+};
 
 const NTATestPlayer: React.FC<NTATestPlayerProps> = ({
   questions,
@@ -134,7 +449,7 @@ const NTATestPlayer: React.FC<NTATestPlayerProps> = ({
     initialMeta ??
     Array.from({ length: totalQ }, () => ({
       state: 'not-visited' as QuestionState,
-      selectedOption: null,
+      answerPayload: null,
       bookmarked: false,
       note: '',
       timeSpent: 0,
@@ -145,9 +460,25 @@ const NTATestPlayer: React.FC<NTATestPlayerProps> = ({
   const [noteOpen, setNoteOpen] = useState(false);
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fetchedImages, setFetchedImages] = useState<Record<string, string>>({});
+  const [timerTick, setTimerTick] = useState(0);
+  const paletteTranslateX = useRef(new Animated.Value(PALETTE_DRAWER_WIDTH)).current;
   const questionScrollRef = useRef<ScrollView>(null);
 
   const questionEntryTime = useRef(Date.now());
+
+  useEffect(() => {
+    const q = questions[currentQ];
+    if (q && !q.imageUrl && q.questionId && (q.subject === 'biology' || !q.subject) && !fetchedImages[q.questionId]) {
+      apiService.curriculum.getImageFallback(q.subject || 'biology', String(q.questionId))
+        .then((res) => {
+          if (res.data.success && res.data.imageUrl) {
+            setFetchedImages((prev) => ({ ...prev, [String(q.questionId)]: res.data.imageUrl }));
+          }
+        })
+        .catch((err) => console.log('Image fetch fallback failed', err));
+    }
+  }, [currentQ, questions, fetchedImages]);
 
   useEffect(() => {
     questionEntryTime.current = Date.now();
@@ -166,10 +497,13 @@ const NTATestPlayer: React.FC<NTATestPlayerProps> = ({
     const elapsed = Math.round((Date.now() - questionEntryTime.current) / 1000);
     setMeta((prev) => {
       const next = [...prev];
-      next[currentQ] = { ...next[currentQ], timeSpent: next[currentQ].timeSpent + elapsed };
+      const nextMeta = { ...next[currentQ], timeSpent: next[currentQ].timeSpent + Math.max(0, elapsed) };
+      next[currentQ] = nextMeta;
+      onAnswerChange?.(currentQ, nextMeta.answerPayload, nextMeta);
       return next;
     });
-  }, [currentQ]);
+    questionEntryTime.current = Date.now();
+  }, [currentQ, onAnswerChange]);
 
   useEffect(() => {
     if (readOnly) return;
@@ -182,9 +516,32 @@ const NTATestPlayer: React.FC<NTATestPlayerProps> = ({
         }
         return t - 1;
       });
+      setTimerTick((value) => value + 1);
     }, 1000);
     return () => clearInterval(interval);
   }, [readOnly]);
+
+  useEffect(() => {
+    if (readOnly) return;
+    if (Platform.OS !== 'web') return;
+    const onVisibilityChange = () => {
+      if (typeof document !== 'undefined' && document.hidden) recordTimeSpent();
+      else questionEntryTime.current = Date.now();
+    };
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', onVisibilityChange);
+      return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+    }
+  }, [recordTimeSpent, readOnly]);
+
+  useEffect(() => {
+    Animated.timing(paletteTranslateX, {
+      toValue: paletteOpen ? 0 : PALETTE_DRAWER_WIDTH,
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [paletteOpen, paletteTranslateX]);
 
   const currentSection = useMemo(() => sections.find((s) => currentQ >= s.startIndex && currentQ <= s.endIndex) ?? sections[0], [currentQ, sections]);
 
@@ -211,74 +568,32 @@ const NTATestPlayer: React.FC<NTATestPlayerProps> = ({
     return { attempted, total };
   }, [meta, totalQ]);
 
-  const selectOption = (optIndex: number) => {
+  const updateCurrentMeta = (updater: (current: QuestionMeta) => QuestionMeta) => {
+    setMeta((prev) => {
+      const next = [...prev];
+      next[currentQ] = updater(next[currentQ]);
+      onAnswerChange?.(currentQ, next[currentQ].answerPayload, next[currentQ]);
+      return next;
+    });
+  };
+
+  const handleAnswerPayloadChange = (answerPayload: AnswerPayload | null) => {
     if (readOnly) return;
-    setMeta((prev) => {
-      const next = [...prev];
-      const cur = next[currentQ];
-      if (!cur) return prev;
-      const wasMarked = cur.state === 'marked-review' || cur.state === 'answered-marked';
-      next[currentQ] = {
-        ...cur,
-        selectedOption: optIndex,
-        state: wasMarked ? 'answered-marked' : 'answered',
-      };
-      return next;
-    });
-    onAnswerChange?.(currentQ, optIndex, meta[currentQ]);
-  };
-
-  const clearAnswer = () => {
-    if (readOnly) return;
-    setMeta((prev) => {
-      const next = [...prev];
-      const cur = next[currentQ];
-      if (!cur) return prev;
-      const wasMarked = cur.state === 'marked-review' || cur.state === 'answered-marked';
-      next[currentQ] = {
-        ...cur,
-        selectedOption: null,
-        state: wasMarked ? 'marked-review' : 'not-answered',
-      };
-      return next;
-    });
-    onAnswerChange?.(currentQ, null, meta[currentQ]);
-  };
-
-  const toggleMarkReview = () => {
-    if (readOnly) return;
-    setMeta((prev) => {
-      const next = [...prev];
-      const cur = next[currentQ];
-      if (!cur) return prev;
-      const hasAnswer = cur.selectedOption !== null;
-      const isMarked = cur.state === 'marked-review' || cur.state === 'answered-marked';
-      if (isMarked) {
-        next[currentQ] = { ...cur, state: hasAnswer ? 'answered' : 'not-answered' };
-      } else {
-        next[currentQ] = { ...cur, state: hasAnswer ? 'answered-marked' : 'marked-review' };
-      }
-      return next;
+    updateCurrentMeta((current) => {
+      const attempted = isAttempted(answerPayload);
+      const marked = current.state === 'marked-review' || current.state === 'answered-marked';
+      return { ...current, answerPayload, state: attempted ? (marked ? 'answered-marked' : 'answered') : (marked ? 'marked-review' : 'not-answered') };
     });
   };
 
-  const toggleBookmark = () => {
-    setMeta((prev) => {
-      const next = [...prev];
-      if (!next[currentQ]) return prev;
-      next[currentQ] = { ...next[currentQ], bookmarked: !next[currentQ].bookmarked };
-      return next;
-    });
-  };
-
-  const updateNote = (text: string) => {
-    setMeta((prev) => {
-      const next = [...prev];
-      if (!next[currentQ]) return prev;
-      next[currentQ] = { ...next[currentQ], note: text };
-      return next;
-    });
-  };
+  const clearAnswer = () => !readOnly && handleAnswerPayloadChange(null);
+  const toggleMarkReview = () => !readOnly && updateCurrentMeta((current) => {
+    const attempted = isAttempted(current.answerPayload);
+    const marked = current.state === 'marked-review' || current.state === 'answered-marked';
+    return { ...current, state: marked ? (attempted ? 'answered' : 'not-answered') : (attempted ? 'answered-marked' : 'marked-review') };
+  });
+  const toggleBookmark = () => updateCurrentMeta((current) => ({ ...current, bookmarked: !current.bookmarked }));
+  const updateNote = (text: string) => updateCurrentMeta((current) => ({ ...current, note: text }));
 
   const goTo = (index: number) => {
     if (index < 0 || index >= totalQ) return;
@@ -293,16 +608,7 @@ const NTATestPlayer: React.FC<NTATestPlayerProps> = ({
   };
 
   const markAndNext = () => {
-    if (!readOnly) {
-      setMeta((prev) => {
-        const next = [...prev];
-        const cur = next[currentQ];
-        if (!cur) return prev;
-        const hasAnswer = cur.selectedOption !== null;
-        next[currentQ] = { ...cur, state: hasAnswer ? 'answered-marked' : 'marked-review' };
-        return next;
-      });
-    }
+    if (!readOnly) toggleMarkReview();
     recordTimeSpent();
     if (currentQ < totalQ - 1) setCurrentQ(currentQ + 1);
   };
@@ -310,22 +616,31 @@ const NTATestPlayer: React.FC<NTATestPlayerProps> = ({
   const handleSubmit = async () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
+    setShowSubmitDialog(false);
     recordTimeSpent();
-    const answers = meta.map((m) => m.selectedOption);
-    await onSubmit({ answers, meta, timeTaken: duration - timeLeft });
+    try {
+      await onSubmit({ answers: meta.map((entry) => entry.answerPayload), meta, timeTaken: duration - timeLeft });
+    } catch (error) {
+      console.error('Failed to submit test:', error);
+      setIsSubmitting(false);
+      setShowSubmitDialog(true);
+    }
   };
 
   const q = questions[currentQ];
-  const opts = getOptionArray(q);
   const curMeta = meta[currentQ] || {
     state: 'not-visited' as QuestionState,
-    selectedOption: null,
+    answerPayload: null,
     bookmarked: false,
     note: '',
     timeSpent: 0,
   };
   const isMarked = curMeta.state === 'marked-review' || curMeta.state === 'answered-marked';
-  const optionLabels = ['A', 'B', 'C', 'D'];
+  const currentQuestionElapsed = useMemo(() => {
+    const stored = Number(curMeta?.timeSpent || 0);
+    if (readOnly || isSubmitting) return stored;
+    return stored + Math.max(0, Math.round((Date.now() - questionEntryTime.current) / 1000));
+  }, [curMeta?.timeSpent, isSubmitting, readOnly, timerTick]);
 
   const timerUrgent = timeLeft < 300;
   const timerWarning = timeLeft < 900 && !timerUrgent;
@@ -373,278 +688,227 @@ const NTATestPlayer: React.FC<NTATestPlayerProps> = ({
           transition={{ type: 'timing', duration: 120 }}
         >
 
-            {/* Header row */}
+          {/* Header row */}
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'flex-start',
+              justifyContent: 'space-between',
+              marginBottom: 12,
+            }}
+          >
             <View
               style={{
-                flexDirection: 'row',
-                alignItems: 'flex-start',
-                justifyContent: 'space-between',
-                marginBottom: 12,
+                backgroundColor: colors.primary + '1A',
+                paddingHorizontal: 8,
+                paddingVertical: 2,
+                borderRadius: 999,
               }}
             >
+              <Text style={{ fontSize: 12, fontWeight: '700', color: colors.primary }}>
+                Question {currentQ + 1}
+              </Text>
+            </View>
+
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <View
                 style={{
-                  backgroundColor: colors.primary + '1A',
+                  flexDirection: 'row',
+                  alignItems: 'center',
                   paddingHorizontal: 8,
-                  paddingVertical: 2,
+                  paddingVertical: 4,
                   borderRadius: 999,
+                  marginLeft: 6,
+                  backgroundColor: colors.muted + '66',
                 }}
               >
-                <Text style={{ fontSize: 12, fontWeight: '700', color: colors.primary }}>
-                  Question {currentQ + 1}
+                <Clock size={14} color={colors.mutedForeground} />
+                <Text style={{ fontSize: 11, fontWeight: '700', color: colors.mutedForeground, marginLeft: 4 }}>
+                  {formatTime(currentQuestionElapsed)}
                 </Text>
               </View>
-
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Pressable
-                  onPress={toggleBookmark}
-                  style={{
-                    padding: 6,
-                    borderRadius: 8,
-                    marginLeft: 6,
-                    backgroundColor: curMeta.bookmarked
-                      ? colors.warning + '1A'
-                      : 'transparent',
-                  }}
-                >
-                  <Star
-                    size={16}
-                    color={curMeta.bookmarked ? colors.warning : colors.mutedForeground}
-                    fill={curMeta.bookmarked ? colors.warning : 'none'}
-                  />
-                </Pressable>
-
-                <Pressable
-                  onPress={() => setNoteOpen(!noteOpen)}
-                  style={{
-                    padding: 6,
-                    borderRadius: 8,
-                    marginLeft: 6,
-                    backgroundColor: curMeta.note
-                      ? colors.info + '1A'
-                      : 'transparent',
-                  }}
-                >
-                  <StickyNote
-                    size={16}
-                    color={curMeta.note ? colors.info : colors.mutedForeground}
-                  />
-                </Pressable>
-
-                {isMarked && (
-                  <View
-                    style={{
-                      padding: 6,
-                      borderRadius: 8,
-                      marginLeft: 6,
-                      backgroundColor: colors.secondary + '1A',
-                    }}
-                  >
-                    <Flag size={16} color={colors.secondary} fill={colors.secondary} />
-                  </View>
-                )}
-              </View>
-            </View>
-
-            {/* Notes Section */}
-            {noteOpen && (
-              <MotiView
-                from={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ type: 'timing', duration: 160 }}
-                style={{ marginBottom: 12 }}
-              >
-                <TextInput
-                  placeholder="Add a personal note for this question..."
-                  placeholderTextColor={colors.mutedForeground}
-                  value={curMeta.note}
-                  onChangeText={updateNote}
-                  multiline
-                  editable={!readOnly}
-                  style={{
-                    minHeight: 60,
-                    padding: 12,
-                    backgroundColor: colors.muted + '80',
-                    borderRadius: 12,
-                    fontSize: 14,
-                    color: colors.foreground,
-                    textAlignVertical: 'top',
-                  }}
-                />
-              </MotiView>
-            )}
-
-            {/* Question */}
-            <Text
-              style={{
-                fontSize: 14,
-                lineHeight: 22,
-                color: colors.foreground,
-                marginBottom: 16,
-              }}
-            >
-              {q?.question || ''}
-            </Text>
-
-            {/* Question Image */}
-            {q?.imageUrl && (
-              <View
+              <Pressable
+                onPress={toggleBookmark}
                 style={{
-                  marginBottom: 16,
-                  borderRadius: 12,
-                  overflow: 'hidden',
-                  borderWidth: 1,
-                  borderColor: colors.border,
+                  padding: 6,
+                  borderRadius: 8,
+                  marginLeft: 6,
+                  backgroundColor: curMeta.bookmarked
+                    ? colors.warning + '1A'
+                    : 'transparent',
                 }}
               >
-                <Image
-                  source={{ uri: q?.imageUrl }}
-                  style={{ width: '100%', height: 240, resizeMode: 'contain' }}
+                <Star
+                  size={16}
+                  color={curMeta.bookmarked ? colors.warning : colors.mutedForeground}
+                  fill={curMeta.bookmarked ? colors.warning : 'none'}
                 />
-              </View>
-            )}
+              </Pressable>
 
-            {/* Options */}
-            <View style={{ gap: 10 }}>
-              {opts.map((opt, i) => {
-                const isSelected = curMeta.selectedOption === i;
-
-                let bg = colors.card;
-                let borderColor = colors.border;
-                let textColor = colors.foreground;
-
-                let badgeBg = 'transparent';
-                let badgeBorder = colors.mutedForeground + '4D';
-                let badgeText = colors.mutedForeground;
-
-                if (readOnly) {
-                  const correctIdx =
-                    typeof q?.correctAnswer === 'string'
-                      ? q.correctAnswer.charCodeAt(0) - 65
-                      : typeof q?.correctAnswer === 'number'
-                        ? q.correctAnswer
-                        : null;
-
-                  if (correctIdx === i) {
-                    borderColor = colors.success;
-                    bg = colors.success + '1A';
-                    badgeBg = colors.success;
-                    badgeBorder = colors.success;
-                    badgeText = '#fff';
-                  } else if (isSelected && correctIdx !== i) {
-                    borderColor = colors.destructive;
-                    bg = colors.destructive + '1A';
-                    badgeBg = colors.destructive;
-                    badgeBorder = colors.destructive;
-                    badgeText = '#fff';
-                  }
-                } else if (isSelected) {
-                  borderColor = colors.primary;
-                  bg = colors.primary + '1A';
-                  badgeBg = colors.primary;
-                  badgeBorder = colors.primary;
-                  badgeText = '#fff';
-                }
-
-                return (
-                  <Pressable
-                    key={i}
-                    onPress={() => selectOption(i)}
-                    disabled={readOnly}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'flex-start',
-                      padding: 14,
-                      borderRadius: 12,
-                      borderWidth: 2,
-                      borderColor,
-                      backgroundColor: bg,
-                      // opacity: pressed && !readOnly ? 0.95 : 1,
-                    }}
-                  >
-                    <View
-                      style={{
-                        width: 28,
-                        height: 28,
-                        borderRadius: 14,
-                        borderWidth: 2,
-                        borderColor: badgeBorder,
-                        backgroundColor: badgeBg,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginRight: 12,
-                      }}
-                    >
-                      <Text
-                        style={{
-                          fontSize: 12,
-                          fontWeight: '700',
-                          color: badgeText,
-                        }}
-                      >
-                        {optionLabels[i]}
-                      </Text>
-                    </View>
-
-                    <Text
-                      style={{
-                        flex: 1,
-                        fontSize: 14,
-                        lineHeight: 22,
-                        color: textColor,
-                        marginTop: 2,
-                      }}
-                    >
-                      {opt}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-
-            {/* Explanation */}
-            {readOnly && q?.explanation && (
-              <View
+              <Pressable
+                onPress={() => setNoteOpen(!noteOpen)}
                 style={{
-                  marginTop: 16,
-                  padding: 12,
-                  borderRadius: 12,
-                  backgroundColor: colors.muted + '80',
-                  borderWidth: 1,
-                  borderColor: colors.border,
+                  padding: 6,
+                  borderRadius: 8,
+                  marginLeft: 6,
+                  backgroundColor: curMeta.note
+                    ? colors.info + '1A'
+                    : 'transparent',
                 }}
               >
+                <StickyNote
+                  size={16}
+                  color={curMeta.note ? colors.info : colors.mutedForeground}
+                />
+              </Pressable>
+
+              {isMarked && (
                 <View
                   style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    marginBottom: 4,
+                    padding: 6,
+                    borderRadius: 8,
+                    marginLeft: 6,
+                    backgroundColor: colors.secondary + '1A',
                   }}
                 >
-                  <BookOpen size={14} color={colors.primary} />
-                  <Text
-                    style={{
-                      fontSize: 12,
-                      fontWeight: '600',
-                      color: colors.primary,
-                      marginLeft: 4,
-                    }}
-                  >
-                    Explanation
-                  </Text>
+                  <Flag size={16} color={colors.secondary} fill={colors.secondary} />
                 </View>
+              )}
+            </View>
+          </View>
 
+          {/* Notes Section */}
+          {noteOpen && (
+            <MotiView
+              from={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ type: 'timing', duration: 160 }}
+              style={{ marginBottom: 12 }}
+            >
+              <TextInput
+                placeholder="Add a personal note for this question..."
+                placeholderTextColor={colors.mutedForeground}
+                value={curMeta.note}
+                onChangeText={updateNote}
+                multiline
+                editable={!readOnly}
+                style={{
+                  minHeight: 60,
+                  padding: 12,
+                  backgroundColor: colors.muted + '80',
+                  borderRadius: 12,
+                  fontSize: 14,
+                  color: colors.foreground,
+                  textAlignVertical: 'top',
+                }}
+              />
+            </MotiView>
+          )}
+
+          {/* Question */}
+          <Text
+            style={{
+              fontSize: 14,
+              lineHeight: 22,
+              color: colors.foreground,
+              marginBottom: 16,
+            }}
+          >
+            {(q?.question || '').replace(/\\n/g, '\n').replace(/\/n/g, '\n')}
+          </Text>
+
+          {(q?.imageUrl || (q?.questionId && fetchedImages[String(q.questionId)])) ? (
+            <View
+              style={{
+                marginBottom: 16,
+                borderRadius: 12,
+                overflow: 'hidden',
+                borderWidth: 1,
+                borderColor: colors.border,
+              }}
+            >
+              <Image
+                source={{ uri: q?.imageUrl || fetchedImages[String(q?.questionId)] }}
+                style={{ width: '100%', height: 240, resizeMode: 'contain' }}
+              />
+            </View>
+          ) : null}
+
+          <DiagramGallery
+            diagrams={q?.resolvedQuestionDiagrams?.filter((d) =>
+              d.status !== 'missing' || !(q?.imageUrl || fetchedImages[String(q.questionId)])
+            )}
+            style={{ marginBottom: 16 }}
+          />
+
+          <QuestionRenderer
+            question={q}
+            answerPayload={curMeta.answerPayload}
+            onChange={handleAnswerPayloadChange}
+            readOnly={readOnly}
+            colors={colors}
+          />
+
+          {/* Explanation */}
+          {readOnly && (q?.explanation || q?.resolvedExplanationDiagrams?.length) && (
+            <View
+              style={{
+                marginTop: 16,
+                padding: 12,
+                borderRadius: 12,
+                backgroundColor: colors.muted + '80',
+                borderWidth: 1,
+                borderColor: colors.border,
+              }}
+            >
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  marginBottom: 4,
+                }}
+              >
+                <BookOpen size={14} color={colors.primary} />
                 <Text
                   style={{
-                    fontSize: 14,
-                    lineHeight: 20,
-                    color: colors.mutedForeground,
+                    fontSize: 12,
+                    fontWeight: '600',
+                    color: colors.primary,
+                    marginLeft: 4,
                   }}
                 >
-                  {q?.explanation}
+                  Explanation
                 </Text>
               </View>
-            )}
+
+              <Text
+                style={{
+                  fontSize: 14,
+                  lineHeight: 20,
+                  color: colors.mutedForeground,
+                }}
+              >
+                {(q?.explanation || '').replace(/\\n/g, '\n').replace(/\/n/g, '\n')}
+              </Text>
+              {q?.explanationImageUrl ? (
+                <View
+                  style={{
+                    marginTop: 12,
+                    borderRadius: 12,
+                    overflow: 'hidden',
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                  }}
+                >
+                  <Image
+                    source={{ uri: q.explanationImageUrl }}
+                    style={{ width: '100%', height: 220, resizeMode: 'contain' }}
+                  />
+                </View>
+              ) : null}
+              <DiagramGallery diagrams={q?.resolvedExplanationDiagrams} style={{ marginTop: 12 }} />
+            </View>
+          )}
         </MotiView>
       </ScrollView>
 
@@ -652,39 +916,58 @@ const NTATestPlayer: React.FC<NTATestPlayerProps> = ({
       <View style={{
         paddingHorizontal: 16,
         paddingTop: 12,
-        paddingBottom: Math.max(insets.bottom, 12),
+        paddingBottom: Math.max(insets.bottom + 12, 24),
         backgroundColor: colors.card,
         borderTopWidth: 1,
-        borderTopColor: colors.border + '33'
+        borderTopColor: colors.border
       }}>
         {/* Row 1: Action buttons */}
         <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10, alignItems: 'center' }}>
           <Button
             variant="ghost"
-            style={{ flex: 1, height: 40, borderRadius: 20, backgroundColor: colors.muted + '1A' }}
+            style={{ flex: 1 }}
             onPress={clearAnswer}
-            disabled={readOnly || curMeta.selectedOption === null}
+            disabled={readOnly || !isAnswerPayloadAttempted(curMeta.answerPayload)}
           >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Eraser size={14} color={readOnly || curMeta.selectedOption === null ? colors.mutedForeground : colors.mutedForeground} />
-              <Text style={{ fontSize: 13, fontWeight: '600', color: readOnly || curMeta.selectedOption === null ? colors.mutedForeground : colors.mutedForeground }}>Clear</Text>
+            <View style={{
+              flex: 1,
+              height: 32,
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: colors.border,
+              backgroundColor: colors.card,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              paddingHorizontal: 12,
+            }}>
+              <Eraser size={14} color={colors.foreground} />
+              <Text style={{ fontSize: 12, fontWeight: '600', color: colors.foreground, textAlign: 'center' }}>Clear</Text>
             </View>
           </Button>
 
           <Button
             variant="ghost"
-            style={{
-              flex: 1.5,
-              height: 40,
-              borderRadius: 20,
-              backgroundColor: isMarked ? '#7c3aed' : colors.muted + '1A'
-            }}
+            style={{ flex: 1 }}
             onPress={toggleMarkReview}
             disabled={readOnly}
           >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Flag size={14} color={isMarked ? '#ffffff' : colors.mutedForeground} fill={isMarked ? '#7e4e4eff' : 'none'} />
-              <Text style={{ fontSize: 13, fontWeight: '600', color: isMarked ? '#7e4e4eff' : colors.mutedForeground }}>
+            <View style={{
+              flex: 1,
+              height: 32,
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: isMarked ? '#7c3aed' : colors.border,
+              backgroundColor: isMarked ? '#7c3aed' : colors.card,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              paddingHorizontal: 12,
+            }}>
+              <Flag size={14} color={isMarked ? '#ffffff' : colors.foreground} fill={isMarked ? '#ffffff' : 'none'} />
+              <Text style={{ fontSize: 12, fontWeight: '600', color: isMarked ? '#ffffff' : colors.foreground, textAlign: 'center' }}>
                 {isMarked ? 'Unmark' : 'Mark Review'}
               </Text>
             </View>
@@ -708,7 +991,7 @@ const NTATestPlayer: React.FC<NTATestPlayerProps> = ({
         <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
           <Button
             variant="ghost"
-            style={{ width: 35, height: 35, borderRadius: 12, backgroundColor: colors.muted + '1A' }}
+            style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: 'transparent' }}
             onPress={() => goTo(currentQ - 1)}
             disabled={currentQ === 0}
           >
@@ -721,14 +1004,14 @@ const NTATestPlayer: React.FC<NTATestPlayerProps> = ({
                 variant="primary"
                 style={{
                   flex: 1,
-                  height: 30,
-                  borderRadius: 22,
-                  backgroundColor: '#3b82f6' // Vibrant Blue
+                  height: 40,
+                  borderRadius: 12,
+                  backgroundColor: '#3b82f6'
                 }}
                 onPress={saveAndNext}
               >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, width: '44%', justifyContent: 'center' }}>
-                  <Text style={{ fontSize: 10, fontWeight: '700', color: '#fff' }}>Save & Next</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#fff' }}>Save & Next</Text>
                   <ChevronRight size={16} color="#fff" />
                 </View>
               </Button>
@@ -736,14 +1019,14 @@ const NTATestPlayer: React.FC<NTATestPlayerProps> = ({
                 variant="secondary"
                 style={{
                   flex: 1,
-                  height: 30,
-                  borderRadius: 22,
-                  backgroundColor: '#8b5cf6' // Vibrant Violet
+                  height: 40,
+                  borderRadius: 12,
+                  backgroundColor: '#7c3aed'
                 }}
                 onPress={markAndNext}
               >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, width: '45%', justifyContent: 'center' }}>
-                  <Text style={{ fontSize: 10, fontWeight: '700', color: '#fff' }}>Mark & Next</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#fff' }}>Mark & Next</Text>
                   <ChevronRight size={16} color="#fff" />
                 </View>
               </Button>
@@ -751,13 +1034,13 @@ const NTATestPlayer: React.FC<NTATestPlayerProps> = ({
           ) : (
             <Button
               variant="primary"
-              style={{ flex: 1, height: 44, borderRadius: 22, backgroundColor: '#3b82f6' }}
+              style={{ flex: 1, height: 40, borderRadius: 12, backgroundColor: colors.muted }}
               onPress={() => goTo(currentQ + 1)}
               disabled={currentQ >= totalQ - 1}
             >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, width: '45%', justifyContent: 'center' }}>
-                <Text style={{ fontSize: 14, fontWeight: '700', color: '#fff' }}>Next Question</Text>
-                <ChevronRight size={18} color="#fff" />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: colors.foreground }}>Next</Text>
+                <ChevronRight size={16} color={colors.foreground} />
               </View>
             </Button>
           )}
@@ -765,83 +1048,114 @@ const NTATestPlayer: React.FC<NTATestPlayerProps> = ({
       </View>
 
       {/* Palette Modal */}
-      <Modal visible={paletteOpen} animationType="slide" transparent>
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+      <Modal visible={paletteOpen} animationType="none" transparent onRequestClose={() => setPaletteOpen(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}>
           <Pressable style={{ flex: 1 }} onPress={() => setPaletteOpen(false)} />
-          <View style={{ backgroundColor: colors.card, height: '85%', borderTopLeftRadius: 24, borderTopRightRadius: 24 }}>
+          <Animated.View
+            style={{
+              position: 'absolute',
+              top: 0,
+              right: 0,
+              bottom: 0,
+              width: PALETTE_DRAWER_WIDTH,
+              transform: [{ translateX: paletteTranslateX }],
+              backgroundColor: colors.card,
+            }}
+          >
             <QuestionPalette
               sections={sections} meta={meta} currentQ={currentQ} totalQ={totalQ}
               stats={stats} sectionStats={sectionStats}
               onSelect={goTo} onClose={() => setPaletteOpen(false)} colors={colors}
             />
-          </View>
+          </Animated.View>
         </View>
       </Modal>
 
       {/* Submit Warning Modal */}
-      <Modal visible={showSubmitDialog} transparent animationType="fade">
+      <Modal visible={showSubmitDialog} transparent animationType="fade" onRequestClose={() => setShowSubmitDialog(false)}>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <View style={{ backgroundColor: colors.card, width: '100%', borderRadius: 24, padding: 24 }}>
-            <View style={{ alignItems: 'center', marginBottom: 20 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                <AlertTriangle size={24} color="#f59e0b" />
-                <Text style={{ fontSize: 20, fontWeight: '700', color: colors.foreground }}>Submit Test?</Text>
+          <View style={{ backgroundColor: colors.card, width: '100%', maxWidth: 360, borderRadius: 24, padding: 24 }}>
+            <View style={{ marginBottom: 20 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <AlertTriangle size={20} color="#f59e0b" />
+                <Text style={{ fontSize: 18, fontWeight: '700', color: colors.foreground }}>Submit Test?</Text>
               </View>
-              <Text style={{ fontSize: 15, color: colors.mutedForeground, textAlign: 'center', lineHeight: 22 }}>
+              <Text style={{ fontSize: 14, color: colors.mutedForeground, lineHeight: 20 }}>
                 Are you sure you want to submit? You cannot change answers after submission.
               </Text>
             </View>
 
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 32 }}>
-              <View style={{ width: '48%', backgroundColor: '#ecfdf5', borderColor: '#10b98122', borderWidth: 1, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 999, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
+              <View style={{ width: '48%', backgroundColor: '#ecfdf5', borderColor: '#10b98122', borderWidth: 1, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <CheckCircle2 size={16} color="#10b981" />
                 <Text style={{ fontSize: 13, fontWeight: '600', color: '#065f46' }}>Answered: {stats.answered + stats.answeredMarked}</Text>
               </View>
-              <View style={{ width: '48%', backgroundColor: '#fef2f2', borderColor: '#ef444422', borderWidth: 1, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 999, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <View style={{ width: '48%', backgroundColor: '#fef2f2', borderColor: '#ef444422', borderWidth: 1, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <X size={16} color="#ef4444" />
                 <Text style={{ fontSize: 13, fontWeight: '600', color: '#991b1b' }}>Unanswered: {stats.notAnswered}</Text>
               </View>
-              <View style={{ width: '48%', backgroundColor: '#f5f3ff', borderColor: '#8b5cf622', borderWidth: 1, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 999, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <View style={{ width: '48%', backgroundColor: '#f5f3ff', borderColor: '#8b5cf622', borderWidth: 1, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <Flag size={16} color="#8b5cf6" />
                 <Text style={{ fontSize: 13, fontWeight: '600', color: '#5b21b6' }}>Review: {stats.markedReview + stats.answeredMarked}</Text>
               </View>
-              <View style={{ width: '48%', backgroundColor: '#f8fafc', borderColor: '#64748b22', borderWidth: 1, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 999, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <View style={{ width: '48%', backgroundColor: '#f8fafc', borderColor: '#64748b22', borderWidth: 1, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <Eye size={16} color="#64748b" />
                 <Text style={{ fontSize: 13, fontWeight: '600', color: '#334155' }}>Not Visited: {stats.notVisited}</Text>
               </View>
             </View>
 
-            <View style={{ gap: 12 }}>
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <Button
+                onPress={() => setShowSubmitDialog(false)}
+                style={{
+                  flex: 1,
+                  height: 44,
+                  borderRadius: 12,
+                  backgroundColor: '#ffffff',
+                  borderWidth: 1,
+                  borderColor: '#e2e8f0',
+                }}
+              >
+                <Text style={{ color: '#0f172a', fontWeight: '600', fontSize: 14 }}>Continue Test</Text>
+              </Button>
               <Button
                 variant='secondary'
                 onPress={handleSubmit}
                 loading={isSubmitting}
                 style={{
-                  height: 52,
-                  borderRadius: 14,
+                  flex: 1,
+                  height: 44,
+                  borderRadius: 12,
                   backgroundColor: '#dc2626',
                   width: '100%'
                 }}
               >
-                <Text style={{ color: '#ffffffff', fontWeight: '700', fontSize: 16 }}>Submit Test</Text>
-              </Button>
-              <Button
-                onPress={() => setShowSubmitDialog(false)}
-                style={{
-                  height: 52,
-                  borderRadius: 14,
-                  backgroundColor: '#f8fafc',
-                  borderWidth: 1,
-                  borderColor: '#e2e8f0',
-                  width: '100%'
-                }}
-              >
-                <Text style={{ color: '#ffffffff', fontWeight: '600', fontSize: 16 }}>Continue Test</Text>
+                <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 14 }}>{isSubmitting ? 'Submitting...' : 'Submit Test'}</Text>
               </Button>
             </View>
           </View>
         </View>
       </Modal>
+
+      {isSubmitting && (
+        <View style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <View style={{ backgroundColor: colors.card, borderRadius: 18, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 20, paddingVertical: 18 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <MotiView
+                from={{ rotate: '0deg' }}
+                animate={{ rotate: '360deg' }}
+                transition={{ loop: true, type: 'timing', duration: 900 }}
+              >
+                <Send size={18} color={colors.primary} />
+              </MotiView>
+              <View>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.foreground }}>Submitting your test</Text>
+                <Text style={{ fontSize: 12, color: colors.mutedForeground, marginTop: 2 }}>Preparing report and analysis...</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   );
 };
@@ -868,16 +1182,25 @@ const QuestionPalette: React.FC<any> = ({ sections, meta, currentQ, totalQ, stat
 
   return (
     <View style={{ flex: 1 }}>
-      <View style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+      <View style={{ padding: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}>
         <Text style={{ fontSize: 16, fontWeight: '700', color: colors.foreground }}>Question Palette</Text>
-        <Pressable onPress={onClose}><X size={20} color={colors.mutedForeground} /></Pressable>
       </View>
 
-      <View style={{ padding: 12, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><View style={{ width: 12, height: 12, borderRadius: 2, borderWidth: 1, borderColor: STATE_COLORS['answered'].border, backgroundColor: STATE_COLORS['answered'].bg }} /><Text style={{ fontSize: 10, color: colors.mutedForeground }}>Ans: {stats.answered + stats.answeredMarked}</Text></View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><View style={{ width: 12, height: 12, borderRadius: 2, borderWidth: 1, borderColor: STATE_COLORS['not-answered'].border, backgroundColor: STATE_COLORS['not-answered'].bg }} /><Text style={{ fontSize: 10, color: colors.mutedForeground }}>Unans: {stats.notAnswered}</Text></View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><View style={{ width: 12, height: 12, borderRadius: 2, borderWidth: 1, borderColor: STATE_COLORS['marked-review'].border, backgroundColor: STATE_COLORS['marked-review'].bg }} /><Text style={{ fontSize: 10, color: colors.mutedForeground }}>Rev: {stats.markedReview + stats.answeredMarked}</Text></View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><View style={{ width: 12, height: 12, borderRadius: 2, borderWidth: 1, borderColor: STATE_COLORS['not-visited'].border, backgroundColor: STATE_COLORS['not-visited'].bg }} /><Text style={{ fontSize: 10, color: colors.mutedForeground }}>Not Vis: {stats.notVisited}</Text></View>
+      <View style={{ padding: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><View style={{ width: 12, height: 12, borderRadius: 2, borderWidth: 1, borderColor: STATE_COLORS['not-visited'].border, backgroundColor: STATE_COLORS['not-visited'].bg }} /><Text style={{ fontSize: 10, color: colors.mutedForeground }}>Not Visited</Text></View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><View style={{ width: 12, height: 12, borderRadius: 2, borderWidth: 1, borderColor: STATE_COLORS['not-answered'].border, backgroundColor: STATE_COLORS['not-answered'].bg }} /><Text style={{ fontSize: 10, color: colors.mutedForeground }}>Not Answered</Text></View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><View style={{ width: 12, height: 12, borderRadius: 2, borderWidth: 1, borderColor: STATE_COLORS['answered'].border, backgroundColor: STATE_COLORS['answered'].bg }} /><Text style={{ fontSize: 10, color: colors.mutedForeground }}>Answered</Text></View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><View style={{ width: 12, height: 12, borderRadius: 2, borderWidth: 1, borderColor: STATE_COLORS['marked-review'].border, backgroundColor: STATE_COLORS['marked-review'].bg }} /><Text style={{ fontSize: 10, color: colors.mutedForeground }}>Marked for Review</Text></View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><View style={{ width: 12, height: 12, borderRadius: 2, borderWidth: 1, borderColor: STATE_COLORS['answered-marked'].border, backgroundColor: STATE_COLORS['answered-marked'].bg }} /><Text style={{ fontSize: 10, color: colors.mutedForeground }}>Answered & Marked</Text></View>
+        </View>
+      </View>
+
+      <View style={{ paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+        <Text style={{ fontSize: 12, fontWeight: '600', color: '#059669' }}>✓ {stats.answered + stats.answeredMarked}</Text>
+        <Text style={{ fontSize: 12, fontWeight: '600', color: '#dc2626' }}>✕ {stats.notAnswered}</Text>
+        <Text style={{ fontSize: 12, fontWeight: '600', color: '#7c3aed' }}>⚑ {stats.markedReview + stats.answeredMarked}</Text>
+        <Text style={{ fontSize: 12, fontWeight: '600', color: colors.mutedForeground }}>○ {stats.notVisited}</Text>
       </View>
 
       <View style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}>

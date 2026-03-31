@@ -6,6 +6,10 @@ import { ArrowLeft, Clock, ChevronLeft, ChevronRight } from 'lucide-react-native
 import { useTheme } from '@/contexts/ThemeContext';
 import apiService from '@/lib/apiService';
 import NTATestPlayer, { type QuestionMeta, type NTASubmitData } from '@/components/NTATestPlayer';
+import { AnswerPayload, isAnswerPayloadAttempted, normalizeQuestions } from '@/lib/questionNormalization';
+import { buildLocalReportAttempt } from '@/lib/testReportAnalytics';
+import { setTestReportState } from '@/lib/testReportState';
+import { resolveDiagramMediaForQuestions } from '@/lib/questionMedia';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Button } from '@/components/ui/Button';
 import { Progress } from '@/components/ui/Progress';
@@ -28,6 +32,7 @@ export default function PracticeSessionScreen() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [elapsed, setElapsed] = useState(0);
+  const [ntaQuestions, setNtaQuestions] = useState<any[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -44,11 +49,13 @@ export default function PracticeSessionScreen() {
           const payload = res.data.data || {};
           const runData = payload.run || payload;
           const questionsData = Array.isArray(payload.questions) ? payload.questions : [];
+          const normalizedQuestions = await resolveDiagramMediaForQuestions(normalizeQuestions(questionsData));
           const initialAnswers = Array.isArray(runData.answers)
             ? runData.answers.map((a: any) => (typeof a === 'number' && a >= 0 ? a : null))
             : new Array(questionsData.length).fill(null);
 
           setRun({ ...runData, questions: questionsData });
+          setNtaQuestions(normalizedQuestions);
           setAnswers(initialAnswers.length > 0 ? initialAnswers : new Array(questionsData.length).fill(null));
           setCurrentIndex(Number(runData.currentIndex || 0));
           setElapsed(Number(runData.elapsedSeconds || 0));
@@ -169,7 +176,7 @@ export default function PracticeSessionScreen() {
       const selected = runAnswers[idx] ?? null;
       return {
         state: selected === null ? 'not-answered' : 'answered',
-        selectedOption: selected,
+        answerPayload: selected === null ? null : { kind: 'mcq', selectedOption: selected },
         bookmarked: false,
         note: '',
         timeSpent: 0,
@@ -177,10 +184,11 @@ export default function PracticeSessionScreen() {
     });
   };
 
-  const handleNtaAnswerChange = async (questionIndex: number, answer: number | null, meta: QuestionMeta) => {
+  const handleNtaAnswerChange = async (questionIndex: number, answer: AnswerPayload | null, meta: QuestionMeta) => {
     if (!challengeId) return;
+    const selected = answer?.kind === 'mcq' ? answer.selectedOption : null;
     const updated = Array.isArray(answers) ? [...answers] : new Array(questions.length).fill(null);
-    updated[questionIndex] = answer;
+    updated[questionIndex] = selected;
     setAnswers(updated);
     try {
       await apiService.curriculum.saveRunProgress(String(challengeId), {
@@ -194,67 +202,33 @@ export default function PracticeSessionScreen() {
   const handleNtaSubmit = async (data: NTASubmitData) => {
     if (!challengeId) return;
     setSubmitting(true);
-    let correct = 0;
-    let incorrect = 0;
-    const total = questions.length;
-
-    questions.forEach((q: any, i: number) => {
-      const selected = data.answers[i];
-      if (selected === null) return;
-      const correctIdx = getCorrectIndex(q);
-      if (correctIdx !== -1 && selected === correctIdx) correct++;
-      else incorrect++;
-    });
-    const skipped = total - correct - incorrect;
-
-    const reviewQuestions = questions.map((q: any, i: number) => ({
-      _id: q._id || q.id || i,
-      question: q.question || q.text || '',
-      options: Array.isArray(q.options) ? q.options : (q.options || {}),
-      correctAnswer: getCorrectIndex(q),
-      explanation: q.explanation || '',
-      userAnswer: data.answers[i],
-    }));
-
-    const subjectWise = [{
-      subject: run?.subject || 'General',
-      correct,
-      total,
-      accuracy: total > 0 ? (correct / total) * 100 : 0,
-    }];
-
-    const chapterWise = [{
-      chapter: run?.topic || 'General',
-      subject: run?.subject || 'General',
-      correct,
-      total,
-      accuracy: total > 0 ? (correct / total) * 100 : 0,
-    }];
+    const payloadAnswers = data.answers.map((answer) => answer?.kind === 'mcq' ? answer.selectedOption : null);
 
     try {
       const res = await apiService.curriculum.submitRun(String(challengeId), {
-        answers: data.answers,
+        answers: payloadAnswers,
         elapsedSeconds: data.timeTaken,
       });
       if (res.data?.success) {
+        const localAttemptId = `curriculum-${String(challengeId)}-${Date.now()}`;
+        const attemptData = buildLocalReportAttempt(
+          ntaQuestions,
+          data,
+          String(run?.subTopic || run?.topic || 'Curriculum Test')
+        );
+
+        setTestReportState(localAttemptId, {
+          attemptData,
+          questions: ntaQuestions,
+          meta: data.meta,
+          timeTaken: data.timeTaken,
+          returnTo: '/(auth)/curriculum/browser',
+          returnLabel: 'Back to Curriculum',
+        });
+
         router.replace({
-          pathname: '/(auth)/quiz/results',
-          params: {
-            title: String(run?.subTopic || run?.topic || 'Curriculum Test'),
-            score: String(correct),
-            correct: String(correct),
-            incorrect: String(incorrect),
-            skipped: String(skipped),
-            total: String(total),
-            timeTaken: String(data.timeTaken),
-            totalMarks: String(total * 4),
-            marksObtained: String(correct * 4 - incorrect),
-            subjectWise: JSON.stringify(subjectWise),
-            chapterWise: JSON.stringify(chapterWise),
-            reviewQuestions: JSON.stringify(reviewQuestions),
-            ntaMeta: JSON.stringify(data.meta),
-            weakAreas: JSON.stringify([]),
-          },
+          pathname: '/(auth)/test/report/[attemptId]',
+          params: { attemptId: localAttemptId },
         } as any);
       }
     } catch (err: any) {
@@ -310,13 +284,6 @@ export default function PracticeSessionScreen() {
   }
 
   if (isTestMode) {
-    const ntaQuestions = (questions || []).map((q: any) => ({
-      id: String(q?._id || q?.questionId || q?.id || ''),
-      question: q?.question || q?.text || '',
-      options: Array.isArray(q?.options) ? q.options : (q?.options || {}),
-      correctAnswer: getCorrectIndex(q),
-      explanation: q?.explanation || '',
-    }));
     const duration = Number(run?.remainingSeconds || run?.totalQuestions * 90 || 5400);
 
     return (

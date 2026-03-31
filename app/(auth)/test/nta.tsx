@@ -1,21 +1,37 @@
 import React from 'react';
 import { View } from 'react-native';
-import { NTATestPlayer, NTAQuestion } from '@/components/NTATestPlayer';
+import NTATestPlayer, { NTAQuestion } from '@/components/NTATestPlayer';
 
 const sampleQuestions: NTAQuestion[] = [
   {
     _id: 'q1',
+    id: 'q1',
+    questionId: 'q1',
+    type: 'mcq',
     question: 'What is the capital of India?',
-    options: ['New Delhi', 'Mumbai', 'Kolkata', 'Chennai'],
-    correctAnswer: 'New Delhi',
     explanation: 'New Delhi is the capital of India.',
+    questionDiagramRefs: [],
+    explanationDiagramRefs: [],
+    resolvedQuestionDiagrams: [],
+    resolvedExplanationDiagrams: [],
+    typeData: { options: ['New Delhi', 'Mumbai', 'Kolkata', 'Chennai'] },
+    isSupported: true,
+    correctAnswer: 'New Delhi',
   },
   {
     _id: 'q2',
+    id: 'q2',
+    questionId: 'q2',
+    type: 'mcq',
     question: 'Which gas is used for respiration?',
-    options: ['Oxygen', 'Nitrogen', 'Carbon dioxide', 'Hydrogen'],
-    correctAnswer: 'Oxygen',
     explanation: 'Oxygen is used in respiration.',
+    questionDiagramRefs: [],
+    explanationDiagramRefs: [],
+    resolvedQuestionDiagrams: [],
+    resolvedExplanationDiagrams: [],
+    typeData: { options: ['Oxygen', 'Nitrogen', 'Carbon dioxide', 'Hydrogen'] },
+    isSupported: true,
+    correctAnswer: 'Oxygen',
   },
 ];
 

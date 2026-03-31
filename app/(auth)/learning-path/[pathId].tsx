@@ -320,7 +320,7 @@ const LearningPathFlow = () => {
                   >
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                       <Text style={{ fontSize: 14, fontWeight: '700', color: '#fff' }}>
-                        {currentQuizIndex < quizzes.length - 1 ? 'Next Quiz' : 'Complete'}
+                        {currentQuizIndex < quizzes.length - 1 ? 'Next' : 'Complete'}
                       </Text>
                       <ChevronRight size={18} color="#fff" />
                     </View>

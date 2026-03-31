@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Home, FileText, Sparkles, MessageCircle, User } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 
-export default function BottomNav() {
+export default function BottomNav({ state, navigation }: any) {
   const router = useRouter();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
@@ -23,11 +23,11 @@ export default function BottomNav() {
   }, []);
 
   const navItems = [
-    { icon: Home, path: '/(auth)/(tabs)', label: 'Home', match: /^\/(auth)?\/?(\(tabs\))?\/?$/ },
-    { icon: FileText, path: '/(auth)/(tabs)/tests', label: 'Tests', match: /^\/(auth)?\/?(\(tabs\))?\/tests\/?/ },
-    { icon: Sparkles, path: '/(auth)/(tabs)/ai-assistant', label: 'AI', match: /^\/(auth)?\/?(\(tabs\))?\/ai-assistant\/?/ },
-    { icon: MessageCircle, path: '/(auth)/(tabs)/social', label: 'Social', match: /^\/(auth)?\/?(\(tabs\))?\/social\/?/ },
-    { icon: User, path: '/(auth)/(tabs)/profile', label: 'Profile', match: /^\/(auth)?\/?(\(tabs\))?\/profile\/?/ },
+    { icon: Home, path: '/(auth)/(tabs)', routeName: 'index', label: 'Home', match: /^\/(auth)?\/?(\(tabs\))?\/?$/ },
+    { icon: FileText, path: '/(auth)/(tabs)/tests', routeName: 'tests/index', label: 'Tests', match: /^\/(auth)?\/?(\(tabs\))?\/tests\/?/ },
+    { icon: Sparkles, path: '/(auth)/(tabs)/ai-assistant', routeName: 'ai-assistant', label: 'AI', match: /^\/(auth)?\/?(\(tabs\))?\/ai-assistant\/?/ },
+    { icon: MessageCircle, path: '/(auth)/(tabs)/social', routeName: 'social/index', label: 'Social', match: /^\/(auth)?\/?(\(tabs\))?\/social\/?/ },
+    { icon: User, path: '/(auth)/(tabs)/profile', routeName: 'profile', label: 'Profile', match: /^\/(auth)?\/?(\(tabs\))?\/profile\/?/ },
   ];
 
   return (
@@ -47,14 +47,21 @@ export default function BottomNav() {
       }}
     >
       <View style={{ flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 4 }}>
-        {navItems.map(({ icon: Icon, path, label, match }, index) => {
-          const isActive = match.test(pathname);
+        {navItems.map(({ icon: Icon, path, routeName, label, match }, index) => {
+          // If we are given state from the Tabs navigator, use state to determine active tab directly
+          const isActive = state ? state.index === index : match.test(pathname);
+          
           return (
             <Pressable
               key={index}
               onPress={() => {
                 if (!isActive) {
-                  router.push(path as any);
+                  // Prefer using the navigator's built in state routing if available
+                  if (navigation && state && state.routes[index]) {
+                    navigation.navigate(state.routes[index].name);
+                  } else {
+                    router.push(path as any);
+                  }
                 }
               }}
               style={{

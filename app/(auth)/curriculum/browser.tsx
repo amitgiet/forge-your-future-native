@@ -704,7 +704,7 @@ export default function CurriculumBrowserScreen() {
               </View>
             ) : panel === 'topics' ? (
               <View style={{ gap: 8 }}>
-                {toppersEssentials && hasAnyEssential(toppersEssentials) && (
+                {false && toppersEssentials && hasAnyEssential(toppersEssentials) && (
                   <Pressable onPress={() => setToppersOpen(true)}>
                     <LinearGradient
                       colors={['rgba(245, 158, 11, 0.15)', 'rgba(250, 204, 21, 0.05)']}

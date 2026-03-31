@@ -70,13 +70,9 @@ export default function DashboardScreen() {
   const [progressLoaded, setProgressLoaded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Same computed values as web (topicSummary takes priority)
-  const dueCount = topicSummary.length > 0
-    ? topicSummary.reduce((sum, t) => sum + t.dueNow, 0)
-    : (dueQuestions?.total || 0);
-  const l2Count = topicSummary.length > 0
-    ? topicSummary.reduce((sum, t) => sum + (t.byLevel?.L2 || 0), 0)
-    : (dueQuestions?.byLevel?.L2?.length || 0);
+  // Revision entry should reflect the actual due NeuronZ queue shown inside the revision screen.
+  const dueCount = dueQuestions?.total || 0;
+  const l2Count = dueQuestions?.byLevel?.L2?.length || 0;
 
   const fetchUserRank = async () => {
     try {
@@ -136,9 +132,9 @@ export default function DashboardScreen() {
     { Icon: Brain, label: 'Revision', sub: dueCount > 0 ? `${dueCount} due (L2: ${l2Count})` : 'Spaced', path: '/(auth)/revision', color: colors.success },
     { Icon: Wand2, label: 'AI Quiz', sub: 'Generate', path: '/(auth)/quiz/generator', color: colors.primary },
     { Icon: Target, label: 'Analytics', sub: 'My Stats', path: '/(auth)/analytics', color: colors.secondary },
-    { Icon: BookOpen, label: 'NCERT', sub: 'Search', path: '/(auth)/ncert/search', color: colors.primary },
-    { Icon: Upload, label: 'Mock', sub: 'Analyze', path: '/(auth)/mock-analyzer', color: colors.secondary },
-    { Icon: Sparkles, label: 'Learn', sub: 'AI Path', path: '/(auth)/learning-paths', color: colors.warning },
+    // { Icon: BookOpen, label: 'NCERT', sub: 'Search', path: '/(auth)/ncert/search', color: colors.primary },
+    // { Icon: Upload, label: 'Mock', sub: 'Analyze', path: '/(auth)/mock-analyzer', color: colors.secondary },
+    // { Icon: Sparkles, label: 'Learn', sub: 'AI Path', path: '/(auth)/learning-paths', color: colors.warning },
     { Icon: Star, label: 'Doubts', sub: 'Forum', path: '/(auth)/doubts', color: colors.success },
   ];
   const quickActionsGap = 12;
@@ -149,8 +145,9 @@ export default function DashboardScreen() {
   // Same study resources as web
   const studyResources = [
     { Icon: BookOpen, title: 'Question Bank', description: 'Biology · Chemistry · Physics topics', color: colors.success, path: '/(auth)/curriculum/browser' },
+    { Icon: Trophy, title: "Toppers' Essentials", description: 'Notes, podcasts, memes, crosswords', color: colors.warning, path: '/toppers-essentials' },
     { Icon: BookMarked, title: 'PYQ Marked Notes', description: 'Physics, Biology, Chemistry', color: colors.primary, path: '/(auth)/pyq' },
-    { Icon: Crown, title: "Toppers' Essentials", description: 'Expert study guides', color: colors.warning, path: '' },
+
   ];
 
   // Skeleton while loading — same as web
@@ -181,7 +178,7 @@ export default function DashboardScreen() {
       <View style={{
         paddingTop: insets.top,
         paddingHorizontal: 16,
-        paddingBottom: 4,
+        paddingBottom: 10,
         backgroundColor: isDark ? colors.background : '#ffffff',
         borderBottomWidth: 1,
         borderBottomColor: isDark ? colors.border + '20' : colors.border,
@@ -430,7 +427,7 @@ export default function DashboardScreen() {
               ))}
             </View>
 
-            <View style={{ flexDirection: 'row', gap: quickActionsGap }}>
+            {/* <View style={{ flexDirection: 'row', gap: quickActionsGap }}>
               {quickActionsRow3.map((action) => (
                 <TouchableOpacity
                   onPress={() => router.push(action.path as any)}
@@ -462,7 +459,7 @@ export default function DashboardScreen() {
                   </Text>
                 </TouchableOpacity>
               ))}
-            </View>
+            </View> */}
           </View>
         </MotiView>
 
@@ -529,3 +526,4 @@ export default function DashboardScreen() {
     </View >
   );
 }
+
